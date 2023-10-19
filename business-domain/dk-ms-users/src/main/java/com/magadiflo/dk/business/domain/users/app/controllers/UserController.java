@@ -2,6 +2,7 @@ package com.magadiflo.dk.business.domain.users.app.controllers;
 
 import com.magadiflo.dk.business.domain.users.app.models.entity.User;
 import com.magadiflo.dk.business.domain.users.app.services.IUserService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -45,6 +46,13 @@ public class UserController {
     public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User user) {
         return this.userService.updateUser(id, user)
                 .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping(path = "/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        return this.userService.deleteUserById(id)
+                .map(wasDeleted -> new ResponseEntity<Void>(HttpStatus.NO_CONTENT))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 

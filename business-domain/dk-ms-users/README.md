@@ -229,3 +229,24 @@ al que le concatenamos varios métodos para finalmente construir una uri dinámi
 ````
 http://localhost:8001/api/v1/users/5 <-- donde el 5, es un valor representativo, aquí irá el id generado en la bd
 ````
+
+## RestController y métodos handler DELETE
+
+Implementamos nuestro método handler `DELETE` para eliminar un user:
+
+````java
+
+@RestController
+@RequestMapping(path = "/api/v1/users")
+public class UserController {
+    /* other code*/
+
+    @DeleteMapping(path = "/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        return this.userService.deleteUserById(id)
+                .map(wasDeleted -> new ResponseEntity<Void>(HttpStatus.NO_CONTENT))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+}
+````
