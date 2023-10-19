@@ -86,3 +86,76 @@ public interface IUserRepository extends CrudRepository<User, Long> {
 
 }
 ````
+
+## Implementando el componente Service
+
+Crearemos primero la interfaz `IUserService` y luego su implementación:
+
+````java
+public interface IUserService {
+    List<User> findAllUsers();
+
+    Optional<User> findUserById(Long id);
+
+    User saveUser(User user);
+
+    Optional<User> updateUser(Long id, User userWithChangeData);
+
+    Optional<Boolean> deleteUserById(Long id);
+}
+````
+
+Ahora, crearemos la clase que implementará la interfaz `IUserService`:
+
+````java
+
+@Service
+public class UserServiceImpl implements IUserService {
+    private final IUserRepository userRepository;
+
+    public UserServiceImpl(IUserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<User> findAllUsers() {
+        return (List<User>) this.userRepository.findAll();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<User> findUserById(Long id) {
+        return this.userRepository.findById(id);
+    }
+
+    @Override
+    @Transactional
+    public User saveUser(User user) {
+        return this.userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public Optional<User> updateUser(Long id, User userWithChangeData) {
+        return this.userRepository.findById(id)
+                .map(userDB -> {
+                    userDB.setName(userWithChangeData.getName());
+                    userDB.setEmail(userWithChangeData.getEmail());
+                    userDB.setPassword(userWithChangeData.getPassword());
+                    return userDB;
+                })
+                .map(this.userRepository::save);
+    }
+
+    @Override
+    @Transactional
+    public Optional<Boolean> deleteUserById(Long id) {
+        return this.userRepository.findById(id)
+                .map(userDB -> {
+                    this.userRepository.deleteById(userDB.getId());
+                    return true;
+                });
+    }
+}
+````
