@@ -291,3 +291,11 @@ logging:
   base de datos de acuerdo con tus entidades.
 - `logging.level.org.hibernate.SQL`, nos permite **ver las consultas SQL** generadas por Hibernate en la consola de
   registro.
+
+## Probando la conexión a MySQL
+
+Luego de ejecutar la aplicación veremos en el log de IntelliJ IDEA las instrucciones ejecutadas para la creación de
+nuestra tabla `users`. Ahora, si abrimos la base de datos veremos dicha tabla:
+
+![users-table](./assets/users-table.png)
+
