@@ -16,6 +16,7 @@
 
     <modules>
         <module>dk-ms-users</module>
+        <module>dk-ms-courses</module>
     </modules>
 
     <dependencies>
