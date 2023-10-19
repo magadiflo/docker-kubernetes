@@ -1,6 +1,20 @@
 # [Guía Completa de Docker & Kubernetes con Spring Boot 2023](https://www.udemy.com/course/guia-completa-de-docker-kubernetes-con-spring-boot/)
 
 ---
+
+## Panorama general
+
+A continuación se muestra lo que en términos generales se hará en el curso:
+
+![1.creando-servicios](./assets/1.creando-servicios.png)
+
+![2.contenerizar-servicios](./assets/2.contenerizar-servicios.png)
+
+![3.kubernetes](./assets/3.kubernetes.png)
+
+![4.integracion-con-spring-cloud](./assets/4.integracion-con-spring-cloud.png)
+
+---
 Este proyecto contendrá todos los microservicios desarrollados en Spring Boot 3. Para eso trabajaremos
 usando `Multiple Maven Modules` en `IntelliJ IDEA`.
 
