@@ -61,11 +61,11 @@ siguientes tags:
 </project>
 ````
 
-Como nuestro proyecto raíz, es un proyecto padre que albergará módulos, automáticamente al crear un nuevo módulo se
-cambia el `<packaging>` que por defecto es implícitamente un `jar` a un `<packaging>pom</packaging>`. Además, vemos
-que se agrega el módulo creado entre las etiquetas `<module>`.
+En el código anterior podemos observar que, como nuestro proyecto raíz, es un proyecto padre que albergará módulos,
+automáticamente al crear un nuevo módulo se cambia el `<packaging>` que por defecto es implícitamente un `jar` a
+un `<packaging>pom</packaging>`. Además, vemos que se agrega el módulo creado entre las etiquetas `<module>`.
 
-El `pom.xml` de nuestro módulo `business-domain` quedaría de esta manera:
+Ahora, si abrimos el `pom.xml` de nuestro módulo `business-domain` creado recientemente, veríamos lo siguiente:
 
 ````xml
 
@@ -142,7 +142,10 @@ A continuación se muestra cómo quedaría el `pom.xml` **raíz de todo el proye
 </project>
 ````
 
-El `pom.xml` del módulo `business-domain` quedaría así:
+Ahora, el `pom.xml` del módulo `business-domain` se convertirá en padre de otros módulos que agregaremos como
+el `dk-ms-users` y el `dk-ms-courses` (microservicios), por lo tanto, necesitamos cambiar su `<packaging>` que
+implícitamente es `jar` a un `<packaging>pom</packaging>`. Finalmente, el `pom.xml` del módulo `business-domain`
+quedaría de la siguiente manera:
 
 ````xml
 
@@ -169,13 +172,22 @@ El `pom.xml` del módulo `business-domain` quedaría así:
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
         </dependency>
     </dependencies>
 </project>
 ````
 
-Finalmente, el `pom.xml` del microservicio `dk-ms-users`:
+Por último, luego de agregar el microservicio `dk-ms-users` dentro del módulo `business-domain` necesitamos configurar
+su `pom.xml`:
 
 ````xml
 
@@ -195,11 +207,6 @@ Finalmente, el `pom.xml` del microservicio `dk-ms-users`:
 
     <dependencies>
         <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-openfeign</artifactId>
-        </dependency>
-
-        <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
@@ -218,7 +225,10 @@ Finalmente, el `pom.xml` del microservicio `dk-ms-users`:
 </project>
 ````
 
-Al estar trabajando con módulo de maven podemos organizar mejor las dependencias del proyecto, esto incluye el **poder
-heredar dependencias**. Por ejemplo, nuestro módulo `dk-ms-users` tendrá todas las dependencias desde el proyecto
-raíz, pues tiene como padre `business-domain` y este a su vez tiene como padre al proyecto raíz `doker-kubernetes`.
+**NOTA**
+
+> Al estar trabajando con módulo de maven podemos organizar mejor las dependencias del proyecto, esto incluye el
+> **poder heredar dependencias**. Por ejemplo, nuestro módulo `dk-ms-users` además de tener su propia dependencia
+> definida en su `pom.xml`, tendrá todas las dependencias desde el proyecto raíz, pues tiene como
+> padre `business-domain` y este a su vez tiene como padre al proyecto raíz `docker-kubernetes`.
 

@@ -17,6 +17,10 @@ Inicialmente, nuestro microservicio `dk-ms-users` tendrá las siguientes depende
     </dependency>
     <dependency>
         <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
     <dependency>
@@ -39,8 +43,8 @@ Inicialmente, nuestro microservicio `dk-ms-users` tendrá las siguientes depende
 
 **NOTA**
 > Si abrimos el `pom.xml` del microservicio `dk-ms-users` con un editor, no veremos todas las dependencias como se
-> muestra en la parte superior, sino más bien las dependencias que solo manejará ese microservicio, es decir
-> solo serán propios de ese microservicio `(openfeign y el connector de mysql)`; las otras dependencias son comunes
+> muestra en la parte superior, sino más bien las dependencias que solo manejará ese microservicio, es decir que
+> solo serán propios de ese microservicio `(connector de mysql)`; las otras dependencias son comunes
 > a los otros proyectos, y para evitar estar agregando una y otra vez, lo que hacemos es organizarlos en los módulos
 > padres. Es decir, al final nuestro microservicio `dk-ms-users` sí las usa, ya que lo está heredando y no solo él lo
 > usará sino otros microservicios que lo requiereran.
