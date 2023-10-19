@@ -76,3 +76,13 @@ public class User {
     /* Getters, Setters an toString() methods */
 }
 ````
+
+## Implementando el componente Repository de acceso a datos
+
+Creamos la interfaz de repositorio para nuestra entidad `User`:
+
+````java
+public interface IUserRepository extends CrudRepository<User, Long> {
+
+}
+````
