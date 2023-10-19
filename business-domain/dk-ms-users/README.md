@@ -189,3 +189,43 @@ public class UserController {
 
 }
 ````
+
+## RestController y métodos handler POST y PUT
+
+Creamos los métodos handler `POST` y `PUT` para crear y actualizar un user respectivamente:
+
+````java
+
+@RestController
+@RequestMapping(path = "/api/v1/users")
+public class UserController {
+    /* other code */
+
+    @PostMapping
+    public ResponseEntity<User> saveUser(@RequestBody User user) {
+        User userDB = this.userService.saveUser(user);
+        URI location = ServletUriComponentsBuilder //Extrae información del HttpServletRequest
+                .fromCurrentRequest() // Obtiene la URI actual del servlet
+                .path("/{id}") // Añadimos el segmento de la URI correspondiente al Id del User
+                .buildAndExpand(userDB.getId()) // Reemplazamos el {id} con el Id del usuario recién creado
+                .toUri(); // Convertimos lo realizado en una URI
+        // Ejm. uriLocation => http://localhost:8001/api/v1/users/5, donde 5 es el id que generó la BD.
+        return ResponseEntity.created(location).body(userDB);
+    }
+
+    @PutMapping(path = "/{id}")
+    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User user) {
+        return this.userService.updateUser(id, user)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+}
+````
+
+En el código anterior observemos el `ServletUriComponentsBuilder` **(extrae información del** `HttpServletRequest`)
+al que le concatenamos varios métodos para finalmente construir una uri dinámica cuyo resultado tendrá esta forma:
+
+````
+http://localhost:8001/api/v1/users/5 <-- donde el 5, es un valor representativo, aquí irá el id generado en la bd
+````
