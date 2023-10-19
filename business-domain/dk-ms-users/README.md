@@ -299,3 +299,86 @@ nuestra tabla `users`. Ahora, si abrimos la base de datos veremos dicha tabla:
 
 ![users-table](./assets/users-table.png)
 
+## Probando API Restful de Users
+
+Luego de haber construido el microservicio dk-ms-users llega el momento de probar todos sus endpoints.
+
+- Crear un user
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"martin\", \"email\":\"martin@gmail.com\", \"password\": \"12345\"}" http://localhost:8001/api/v1/users | jq
+
+>
+< HTTP/1.1 201
+< Location: http://localhost:8001/api/v1/users/1
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "martin",
+  "email": "martin@gmail.com",
+  "password": "12345"
+}
+````
+
+- Listar users
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[
+  {
+    "id": 1,
+    "name": "martin",
+    "email": "martin@gmail.com",
+    "password": "12345"
+  }
+]
+````
+
+- Obtener un user
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users/1 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "martin",
+  "email": "martin@gmail.com",
+  "password": "12345"
+}
+````
+
+- Actualizar un user
+
+````bash
+$ curl -v -X PUT -H "Content-Type: application/json" -d "{\"name\": \"Martin\", \"email\":\"martin.system@gmail.com\", \"password\": \"abcde\"}" http://localhost:8001/api/v1/users/1 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "Martin",
+  "email": "martin.system@gmail.com",
+  "password": "abcde"
+}
+````
+
+- Eliminar un user
+
+````bash
+$  curl -v -X DELETE http://localhost:8001/api/v1/users/1 | jq
+
+>
+< HTTP/1.1 204
+````
