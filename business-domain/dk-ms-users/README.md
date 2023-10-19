@@ -45,3 +45,34 @@ Inicialmente, nuestro microservicio `dk-ms-users` tendrá las siguientes depende
 > padres. Es decir, al final nuestro microservicio `dk-ms-users` sí las usa, ya que lo está heredando y no solo él lo
 > usará sino otros microservicios que lo requiereran.
 
+## Configurando el contexto de persistencia JPA/Hibernate
+
+Configuramos el `application.yml` dándole un nombre a este microservicio y estableciéndo un puerto:
+
+````yaml
+server:
+  port: 8001
+
+spring:
+  application:
+    name: dk-ms-users
+````
+
+Creamos el modelo de entidad `User`:
+
+````java
+
+@Entity
+@Table(name = "users")
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String name;
+    @Column(unique = true)
+    private String email;
+    private String password;
+
+    /* Getters, Setters an toString() methods */
+}
+````
