@@ -250,3 +250,44 @@ public class UserController {
 
 }
 ````
+
+## Configurando application.yml conexión MySQL
+
+A las configuraciones iniciales que teníamos en el `application.yml` le agregamos ahora las configuraciones de la
+conexión a nuestra base de datos:
+
+````yaml
+# Other configuration
+
+spring:
+  # Other configuration
+
+  ## DataSource MySQL
+  datasource:
+    url: jdbc:mysql://localhost:3306/db_dk_ms_users
+    username: root
+    password: magadiflo
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    generate-ddl: true
+    properties:
+      hibernate:
+        format_sql: true
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+````
+
+**DONDE**
+
+- `spring.jpa.database-platform`, permite configurar el dialecto de la BD a usar en JPA. Cada motor de BD tiene su
+  propio dialecto, es decir palabras reservadas que son propias de la BD a usar.
+- `spring.jpa.generate-ddl`, esta configuración es específica de Spring Boot y controla si se debe generar
+  automáticamente el **DDL (Data Definition Language)** para la base de datos a partir de las entidades JPA de tu
+  aplicación. Cuando se establece en true, Spring Boot intentará generar el DDL necesario para crear o actualizar la
+  base de datos de acuerdo con tus entidades.
+- `logging.level.org.hibernate.SQL`, nos permite **ver las consultas SQL** generadas por Hibernate en la consola de
+  registro.
