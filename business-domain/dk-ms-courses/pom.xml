@@ -10,15 +10,15 @@
     </parent>
 
     <groupId>com.magadiflo.dk.business.domain</groupId>
-    <artifactId>dk-ms-users</artifactId>
+    <artifactId>dk-ms-courses</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>dk-ms-users</name>
+    <name>dk-ms-courses</name>
     <description>Demo project for Spring Boot</description>
 
     <dependencies>
         <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
     </dependencies>
