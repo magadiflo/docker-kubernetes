@@ -225,3 +225,32 @@ public class CourseController {
 
 }
 ````
+
+## Configurando el datasource y conexión con PostgreSQL
+
+En esta sección configuraremos la conexión a la base de datos de PostgreSQL similar a cómo configuramos el DataSource
+del microservicio `dk-ms-users`:
+
+````yaml
+# Other property
+
+spring:
+  # Other property
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/db_dk_ms_courses
+    username: postgres
+    password: magadiflo
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    generate-ddl: true
+    properties:
+      hibernate:
+        format_sql: true
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+````
