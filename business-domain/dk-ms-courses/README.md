@@ -254,3 +254,86 @@ logging:
   level:
     org.hibernate.SQL: debug
 ````
+
+Como tenemos la configuración `spring.jpa.generate-ddl=true`, al ejecutar la aplicación por primera vez, hibernate
+creará la tabla `courses` en la BD a partir de la entidad `Course`:
+
+![courses-table](./assets/courses-table.png)
+
+## Probando API Restful de dk-ms-courses
+
+Llegó el momento de probar los endpoints desarrollados en nuestro microservicio `dk-ms-courses`:
+
+- Guardar un course:
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"Docker\"}" http://localhost:8002/api/v1/courses | jq
+
+>
+< HTTP/1.1 201
+< Location: http://localhost:8002/api/v1/courses/1
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "Docker"
+}
+````
+
+- Listar courses:
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[
+  {
+    "id": 1,
+    "name": "Docker"
+  }
+]
+````
+
+- Ver un course:
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses/1 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "Docker"
+}
+````
+
+- Actualizar un course:
+
+````bash
+$ curl -v -X PUT -H "Content-Type: application/json" -d "{\"name\": \"Master en Docker\"}" http://localhost:8002/api/v1/courses/1 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "Master en Docker"
+}
+
+````
+
+- Eliminar un course:
+
+````bash
+$ curl -v -X DELETE http://localhost:8002/api/v1/courses/1 | jq
+
+>
+< HTTP/1.1 204
+< Date: Fri, 20 Oct 2023 04:23:42 GMT
+````
