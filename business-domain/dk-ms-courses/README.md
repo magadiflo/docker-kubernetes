@@ -98,3 +98,76 @@ Creamos el repositorio de la entidad course:
 public interface ICourseRepository extends CrudRepository<Course, Long> {
 }
 ````
+
+## Agregando el componente Service
+
+Empezamos creando la interfaz que usará nuestro servicio de courses:
+
+````java
+public interface ICourseService {
+    List<Course> findAllCourses();
+
+    Optional<Course> findCourseById(Long id);
+
+    Course saveCourse(Course course);
+
+    Optional<Course> updateCourse(Long id, Course courseWithChangeData);
+
+    Optional<Boolean> deleteCourseById(Long id);
+
+}
+````
+
+Ahora toca implementar el servicio del course:
+
+````java
+
+@Service
+public class CourseServiceImpl implements ICourseService {
+    private final ICourseRepository courseRepository;
+
+    public CourseServiceImpl(ICourseRepository courseRepository) {
+        this.courseRepository = courseRepository;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Course> findAllCourses() {
+        return (List<Course>) this.courseRepository.findAll();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Course> findCourseById(Long id) {
+        return this.courseRepository.findById(id);
+    }
+
+    @Override
+    @Transactional
+    public Course saveCourse(Course course) {
+        return this.courseRepository.save(course);
+    }
+
+    @Override
+    @Transactional
+    public Optional<Course> updateCourse(Long id, Course courseWithChangeData) {
+        return this.courseRepository.findById(id)
+                .map(courseDB -> {
+                    courseDB.setName(courseWithChangeData.getName());
+                    return courseDB;
+                })
+                .map(this.courseRepository::save);
+    }
+
+    @Override
+    @Transactional
+    public Optional<Boolean> deleteCourseById(Long id) {
+        return this.courseRepository.findById(id)
+                .map(courseDB -> {
+                    this.courseRepository.deleteById(courseDB.getId());
+                    return true;
+                });
+    }
+}
+````
+
