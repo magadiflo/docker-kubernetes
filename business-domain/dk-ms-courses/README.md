@@ -73,3 +73,28 @@ spring:
   application:
     name: dk-ms-courses
 ````
+
+## Añadiendo la clase Entity y el CrudRepository
+
+Creamos la entidad `Course`:
+
+````java
+
+@Entity
+@Table(name = "courses")
+public class Course {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String name;
+
+    /* Getters, Setters and toString() methods */
+}
+````
+
+Creamos el repositorio de la entidad course:
+
+````java
+public interface ICourseRepository extends CrudRepository<Course, Long> {
+}
+````
