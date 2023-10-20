@@ -2,6 +2,7 @@ package com.magadiflo.dk.business.domain.courses.app.controllers;
 
 import com.magadiflo.dk.business.domain.courses.app.models.entities.Course;
 import com.magadiflo.dk.business.domain.courses.app.services.ICourseService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -32,7 +33,7 @@ public class CourseController {
     }
 
     @PostMapping
-    public ResponseEntity<Course> saveCourse(@RequestBody Course course) {
+    public ResponseEntity<Course> saveCourse(@Valid @RequestBody Course course) {
         Course courseDB = this.courseService.saveCourse(course);
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
@@ -43,7 +44,7 @@ public class CourseController {
     }
 
     @PutMapping(path = "/{id}")
-    public ResponseEntity<Course> updateCourse(@PathVariable Long id, @RequestBody Course course) {
+    public ResponseEntity<Course> updateCourse(@PathVariable Long id, @Valid @RequestBody Course course) {
         return this.courseService.updateCourse(id, course)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
