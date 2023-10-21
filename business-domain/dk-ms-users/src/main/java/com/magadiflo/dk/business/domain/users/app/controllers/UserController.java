@@ -2,6 +2,7 @@ package com.magadiflo.dk.business.domain.users.app.controllers;
 
 import com.magadiflo.dk.business.domain.users.app.models.entity.User;
 import com.magadiflo.dk.business.domain.users.app.services.IUserService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -32,7 +33,7 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<User> saveUser(@RequestBody User user) {
+    public ResponseEntity<User> saveUser(@Valid @RequestBody User user) {
         User userDB = this.userService.saveUser(user);
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
@@ -43,7 +44,7 @@ public class UserController {
     }
 
     @PutMapping(path = "/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User user) {
+    public ResponseEntity<User> updateUser(@PathVariable Long id, @Valid @RequestBody User user) {
         return this.userService.updateUser(id, user)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());

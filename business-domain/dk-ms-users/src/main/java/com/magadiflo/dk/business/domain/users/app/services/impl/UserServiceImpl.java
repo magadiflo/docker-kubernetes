@@ -1,5 +1,6 @@
 package com.magadiflo.dk.business.domain.users.app.services.impl;
 
+import com.magadiflo.dk.business.domain.users.app.exceptions.domain.EmailExistException;
 import com.magadiflo.dk.business.domain.users.app.models.entity.User;
 import com.magadiflo.dk.business.domain.users.app.repositories.IUserRepository;
 import com.magadiflo.dk.business.domain.users.app.services.IUserService;
@@ -32,6 +33,9 @@ public class UserServiceImpl implements IUserService {
     @Override
     @Transactional
     public User saveUser(User user) {
+        if (this.userRepository.existsByEmail(user.getEmail())) {
+            throw new EmailExistException("Ya existe un usuario con ese email");
+        }
         return this.userRepository.save(user);
     }
 
@@ -40,6 +44,13 @@ public class UserServiceImpl implements IUserService {
     public Optional<User> updateUser(Long id, User userWithChangeData) {
         return this.userRepository.findById(id)
                 .map(userDB -> {
+
+                    if (!userWithChangeData.getEmail().equalsIgnoreCase(userDB.getEmail()) &&
+                        this.userRepository.existsByEmail(userWithChangeData.getEmail())) {
+
+                        throw new EmailExistException("Ya existe un usuario con ese email");
+                    }
+
                     userDB.setName(userWithChangeData.getName());
                     userDB.setEmail(userWithChangeData.getEmail());
                     userDB.setPassword(userWithChangeData.getPassword());
