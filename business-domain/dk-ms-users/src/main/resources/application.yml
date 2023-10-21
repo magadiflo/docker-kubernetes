@@ -1,0 +1,23 @@
+server:
+  port: 8001
+
+spring:
+  application:
+    name: dk-ms-users
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/db_dk_ms_users
+    username: root
+    password: magadiflo
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    generate-ddl: true
+    properties:
+      hibernate:
+        format_sql: true
+
+logging:
+  level:
+    org.hibernate.SQL: debug

@@ -1,0 +1,23 @@
+server:
+  port: 8002
+
+spring:
+  application:
+    name: dk-ms-courses
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/db_dk_ms_courses
+    username: postgres
+    password: magadiflo
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    generate-ddl: true
+    properties:
+      hibernate:
+        format_sql: true
+
+logging:
+  level:
+    org.hibernate.SQL: debug
