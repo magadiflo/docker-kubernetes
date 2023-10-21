@@ -1,6 +1,7 @@
 package com.magadiflo.dk.business.domain.users.app.exceptions;
 
 import com.magadiflo.dk.business.domain.users.app.dtos.ExceptionHttpResponse;
+import com.magadiflo.dk.business.domain.users.app.exceptions.domain.EmailExistException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -27,6 +28,11 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.toMap(FieldError::getField, this::messageFieldError));
 
         return this.httpResponse(HttpStatus.BAD_REQUEST, "Error al validar los campos", fieldErrors);
+    }
+
+    @ExceptionHandler(EmailExistException.class)
+    public ResponseEntity<ExceptionHttpResponse> emailExistException(EmailExistException exception) {
+        return this.exceptionHttpResponse(HttpStatus.BAD_REQUEST, exception.getMessage());
     }
 
     private ResponseEntity<ExceptionHttpResponse> exceptionHttpResponse(HttpStatus httpStatus, String message) {

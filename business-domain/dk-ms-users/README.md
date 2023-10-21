@@ -525,3 +525,119 @@ $ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \" \", \"em
   }
 }
 ````
+
+## Validando si existe el email del usuario en la Base de Datos
+
+Para validar si ya existe un email de un usuario registrado en la base de datos necesitamos crear una **excepción
+personalizada** que lanzaremos cuando verifiquemos que se intenta registrar un email ya existente:
+
+````java
+public class EmailExistException extends RuntimeException {
+    public EmailExistException(String message) {
+        super(message);
+    }
+}
+````
+
+Ahora, como ya hemos creado nuestro manejador de excepciones globales, crearemos el método que capturará la
+excepción `EmailExistException`:
+
+````java
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    /* other code*/
+    @ExceptionHandler(EmailExistException.class)
+    public ResponseEntity<ExceptionHttpResponse> emailExistException(EmailExistException exception) {
+        return this.exceptionHttpResponse(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+    /* other code*/
+}
+````
+
+Necesitamos un método en el `IUserRepository` que nos verifique si el email que le pasamos por parámetro existe en la
+base de datos:
+
+````java
+public interface IUserRepository extends CrudRepository<User, Long> {
+    boolean existsByEmail(String email);
+}
+````
+
+Finalmente, en nuestra implementación del servicio `UserServiceImpl` validamos la existencia del email en los métodos
+`saveUser()` y `updateUser()`:
+
+````java
+
+@Service
+public class UserServiceImpl implements IUserService {
+    /* other code */
+
+    @Override
+    @Transactional
+    public User saveUser(User user) {
+        if (this.userRepository.existsByEmail(user.getEmail())) {
+            throw new EmailExistException("Ya existe un usuario con ese email");
+        }
+        return this.userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public Optional<User> updateUser(Long id, User userWithChangeData) {
+        return this.userRepository.findById(id)
+                .map(userDB -> {
+
+                    if (!userWithChangeData.getEmail().equalsIgnoreCase(userDB.getEmail()) &&
+                        this.userRepository.existsByEmail(userWithChangeData.getEmail())) {
+
+                        throw new EmailExistException("Ya existe un usuario con ese email");
+                    }
+
+                    userDB.setName(userWithChangeData.getName());
+                    userDB.setEmail(userWithChangeData.getEmail());
+                    userDB.setPassword(userWithChangeData.getPassword());
+                    return userDB;
+                })
+                .map(this.userRepository::save);
+    }
+
+    /* other code */
+}
+````
+
+## Probando validación de email
+
+Ejecutamos la aplicación y registramos un email existente a un nuevo usuario:
+
+````bash
+$ curl -v -X PUT -H "Content-Type: application/json" -d "{\"name\": \"Martin\", \"email\":\"nophy@gmail.com\", \"password\": \"abcde\"}" http://localhost:8001/api/v1/users/2 | jq
+
+>
+< HTTP/1.1 400
+< Content-Type: application/json
+<
+{
+  "timestamp": "2023-10-20T19:36:34.3487394",
+  "statusCode": 400,
+  "httpStatus": "BAD_REQUEST",
+  "message": "Ya existe un usuario con ese email"
+}
+````
+
+Lo mismo ocurre si tratamos de actualizar un email por otro ya existente en la base de datos:
+
+````bash
+$ curl -v -X PUT -H "Content-Type: application/json" -d "{\"name\": \"Martin\", \"email\":\"nophy@gmail.com\", \"password\": \"abcde\"}" http://localhost:8001/api/v1/users/2 | jq
+
+>
+< HTTP/1.1 400
+< Content-Type: application/json
+<
+{
+  "timestamp": "2023-10-20T19:38:08.4345786",
+  "statusCode": 400,
+  "httpStatus": "BAD_REQUEST",
+  "message": "Ya existe un usuario con ese email"
+}
+````
