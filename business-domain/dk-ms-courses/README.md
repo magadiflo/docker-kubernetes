@@ -475,56 +475,73 @@ $ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"  \"}" ht
 
 ---
 
-## Creando JPA Entity intermedio CourseUser
+## Creando JPA Entity CourseUser
 
-Hasta este punto tenemos creados nuestros dos microservicios `dk-ms-users` y `dk-ms-courses`, cada uno manejando su
-propia base de datos, aunque solo teemos una tabla en cada microservicio.
+Hasta este punto tenemos creados nuestros dos microservicios `dk-ms-courses` y `dk-ms-users`, cada uno manejando su
+propia base de datos, aunque solo tenemos una tabla en cada microservicio.
 
-Llega el momento de establecer la comunicación entre estos dos microservicios, pero para eso necesitamos entender cómo
-es que a nivel de base de datos se relacionan sus tablas.
+![2.courses-users-table](./assets/2.courses-users-table.png)
 
-Si imaginamos un diagrama único de nuestra base de datos veríamos lo siguiente:
+Ahora, dejemos a un lado solo por este momento el tema de microservicios y enfoquémonos en la regla de negocio que
+trabajaremos en este proyecto:
 
-![2.many-to-many-relationship](./assets/2.many-to-many-relationship.png)
+> Un **usuario** o alumno podrá estar en un único **curso** y en un **curso** podrán estar muchos **usuarios** o
+> alumnos. Imaginemos que **cursos** son por ejemplo cursos de deporte donde tú como alumno **puedes elegir
+> estar solo en uno de ellos.**
+>
+> Lo que se quiere lograr es una relación de **One-To-Many**, podríamos haber tomado cualquier otro ejemplo como
+> Categoría y Productos y haber realizado todo el proyecto en base a esas entidades, pero bueno, el tutor eligió
+> cursos y usuarios para trabajar en todo este proyecto.
 
-Tenemos una relación de `Many-To-Many` entre las tablas `courses` y `users` (serían los alumnos, así lo definió el
-tutor) y a partir de la relación de `Many-To-Many` creamos una tabla intermedia llamada `courses_users` quien contendrá
-las referencias a las tablas a través de los `Foreign Key`. En esta relación, podemos ver que un usuario puede estar en
-muchos cursos, así como un curso puede tener muchos usuarios.
+Por lo tanto, teniendo nuestra regla de negocio definida, nuestro diagrama ER de Base de Datos quedaría de esta manera:
 
-> **Importante**: El conjunto `(course_id, user_id)` deben ser únicos, de esa forma evitamos la duplicidad de datos.
+![3.one-to-many_courses_users](./assets/3.one-to-many_courses_users.png)
 
-Recordemos que la tabla `users` le pertenece al microservicio `dk-ms-users` y está en `MySQL`, mientras que la tabla
-`courses` le pertenece al microservicio `dk-ms-courses` y está en `PostgreSQL`, la pregunta es
-**¿dónde va la tabla intermedia?**
+Ahora, la pregunta es **¿cómo llevamos esa relación a los microservicios, si cada microservicio tiene su propia tabla y
+su propia base de datos independiente?**
 
-Analizando la pregunta anterior, llegamos a la conclusión de que la tabla intermedia `courses_users` debería estar en
-el microservicio de `dk-ms-courses` ya que de por sí, un curso necesariamente requiere usuarios que estén registrados
-en él para que tenga sentido su razón de existencia, por lo tanto, llevaremos ese control en dicho microservicio.
+Lo que podemos hacer es crear una tabla, en una de las bases de datos, que tenga la función de ser un "espejo" de la
+tabla de la otra base de datos y donde solo almacene los identificadores, ya que la información completa la tiene la
+otra base de datos.
 
-![3.many-to-many-organizacion](./assets/3.many-to-many-organizacion.png)
+Y ahora, la pregunta es **¿en qué base de datos creamos la nueva tabla que hará de "espejo" de la otra tabla?**.
 
-Listo, una vez habiendo definido la ubicación de la tabla intermedia, llega el momento de crear la entidad
+Analizando la pregunta anterior, llegamos a la conclusión de que la nueva tabla, a la que llamaremos por cierto
+`course_users`, debería estar en el microservicio de `dk-ms-courses` ya que de por sí, un curso necesariamente requiere
+usuarios que estén registrados en él para que tenga sentido su razón de existencia, por lo tanto, llevaremos ese
+control en dicho microservicio.
+
+![4.one-to-many-microservicios](./assets/4.one-to-many-microservicios.png)
+
+Para finalizar la idea anterior, la tabla `course_users` sería como si colocáramos la tabla `users` dentro del
+microservicio `dk-ms-courses` en su reemplazo, pero aquí únicamente contendrá la `id` de la tabla `users` a través del
+atributo `user_id`, es decir, el `user_id` sería como la `id` de la tabla `users`. Ahora, con respecto al atributo
+`course_id`, como estamos en el microservicio `dk-ms-courses` aquí sí se convierte en un `FK` explícito que apunta a
+la tabla `courses`. Finalmente, con respecto al `id` de la tabla `course_users`, solo nos sirve como clave primaria de
+la tabla, para nada más. Aquí los dos atributos importantes son `course_id` y el `user_id`.
+
+Listo, una vez habiendo explicado el funcionamiento de la tabla `course_users`, llega el momento de crear la entidad
 correspondiente y establecer la relación.
 
-A continuación creamos la entidad `CourseUser` correspondiente a la tabla `courses_users` donde debemos observar varios
+A continuación creamos la entidad `CourseUser` correspondiente a la tabla `course_users` donde debemos observar varios
 aspectos importantes:
 
-1. Definimos como únicos al conjunto de columnas `course_id, user_id`.
-2. Definimos la propiedad `userId` correspondiente al campo `user_id` que será la `Fokeing Key` que apunta a la `PK`
-   de la tabla `users` que está en el microservicio `dk-ms-users`.
-3. Sobreescribimos el método `equals()` para decirle a hibernate que cuando se compare una entidad del tipo
+1. Definimos la propiedad `userId` correspondiente al campo `user_id` que representa conceptualmente la `Primary Key`
+   de la tabla `users` en la tabla `course_users`, es decir, es como si `course_users` fuera la tabla `users`. ¡Ojo!
+   estoy diciendo que **representa conceptualmente**, es decir, estamos diciendo a qué hace referencia ese atributo.
+   Además, estamos diciendo que dicha propiedad es única para evitar que un usuario pueda estar en varios cursos.
+2. Sobreescribimos el método `equals()` para decirle a hibernate que cuando se compare una entidad del tipo
    `CourseUser` lo haga a través de la propiedad `userId`.
 
 ````java
 
 @Entity
-@Table(name = "courses_users", uniqueConstraints = {@UniqueConstraint(columnNames = {"course_id", "user_id"})})
+@Table(name = "course_users")
 public class CourseUser {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(name = "user_id")
+    @Column(name = "user_id", unique = true)
     private Long userId;
 
     /* Getter and setter */
@@ -541,10 +558,11 @@ public class CourseUser {
 }
 ````
 
-Ahora, en la entidad `Course` establecemos la relación con la entidad `CourseUser`. Observemos que además hemos creado
-dos métodos adicionales `addCourseUser()` y `removeCourseUser()`, precisamente para eso fue que sobreescribiemos el
-método `equals()` de la entidad `CourseUser`, para que cuando usemos el método `removeCourseUser()` elimine la entidad
-estableciendo la comparación por la propiedad `userId` de la entidad `CourseUser`:
+Ahora, en la entidad `Course` establecemos la `relación unidireccional @OneToMany` con la entidad `CourseUser`.
+Observemos que además hemos creado dos métodos adicionales `addCourseUser()` y `removeCourseUser()`, precisamente para
+eso fue que sobreescribiemos el método `equals()` de la entidad `CourseUser`, para que cuando usemos el
+método `removeCourseUser()` elimine la entidad estableciendo la comparación por la propiedad `userId` de la
+entidad `CourseUser`:
 
 ````java
 
@@ -582,7 +600,7 @@ public class Course {
 ## Creando la clase POJO User
 
 Recordemos que en la base de datos del microservicio `dk-ms-courses` únicamente tenemos dos tablas relacionadas:
-`courses` y `courses_users`. Ahora, cuando recuperemos información de la tabla intermedia podremos recuperar la
+`courses` y `course_users`. Ahora, cuando recuperemos información de la tabla `course_users` podremos recuperar la
 información de la entidad `Course` ya que está en el mismo microservicio, mientras que por el lado de los usuarios,
 únicamente nos retornará sus `identificadores`. Entonces, es en ese momento donde requerimos hacer una llamada con
 nuestro `Http Feign Client` para solicitarle al microservicio `dk-ms-users` nos retorne la información de todos los
@@ -629,11 +647,21 @@ public class Course {
 }
 ````
 
+Para dejar más claro el código anterior, recordemos que la entidad `Course` tiene una relación de `@OneToMany` con
+la entidad `CourseUser`, entonces cuando recuperemos un curso, se recuperarán también los registros asociados al curso
+que están registrados en la tabla `course_users`, para ser más exactos, se recuperarán los `identificadores` de los
+usuarios que están registrados en la tabla `course_users` y que pertenecen al curso recuperado. Pero **¿de qué
+nos sirve tener los ids de los usuarios?**, pues bien, a partir de esos `ids` recuperados, se hará una llamada al
+microservicio `dk-ms-users` para recuperar la información completa de los usuarios, una vez recuperados, necesitamos
+de alguna manera asociarlo al curso, eh ahí la razón del porqué creamos el atributo
+`@Transient private List<User> users`. De esta forma, cuando enviemos información de un curso al cliente, no solo
+enviemos los identificadores de los usuarios asignados a ese curso, sino más bien la información completa.
+
 ## Revisando tablas de la Base de Datos y agregando métodos de comunicación HTTP
 
-Si ejecutamos nuestra aplicación veremos la creación de la tabla `courses_users` y su relación con la tabla `courses`:
+Si ejecutamos nuestra aplicación veremos la creación de la tabla `course_users` y su relación con la tabla `courses`:
 
-![4.db_dk_ms_courses-courses_users](./assets/4.db_dk_ms_courses-courses_users.png)
+![5.courses_course_users](./assets/5.courses_course_users.png)
 
 Ahora, necesitamos agregar métodos para interactuar con el microservicio `dk-ms-users`, eso lo haremos en
 la capa de servicio:

@@ -5,12 +5,12 @@ import jakarta.persistence.*;
 import java.util.Objects;
 
 @Entity
-@Table(name = "courses_users", uniqueConstraints = {@UniqueConstraint(columnNames = {"course_id", "user_id"})})
+@Table(name = "course_users")
 public class CourseUser {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(name = "user_id")
+    @Column(name = "user_id", unique = true)
     private Long userId;
 
     public Long getId() {
