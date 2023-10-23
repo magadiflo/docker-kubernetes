@@ -578,3 +578,53 @@ public class Course {
     /* toString() method */
 }
 ````
+
+## Creando la clase POJO User
+
+Recordemos que en la base de datos del microservicio `dk-ms-courses` únicamente tenemos dos tablas relacionadas:
+`courses` y `courses_users`. Ahora, cuando recuperemos información de la tabla intermedia podremos recuperar la
+información de la entidad `Course` ya que está en el mismo microservicio, mientras que por el lado de los usuarios,
+únicamente nos retornará sus `identificadores`. Entonces, es en ese momento donde requerimos hacer una llamada con
+nuestro `Http Feign Client` para solicitarle al microservicio `dk-ms-users` nos retorne la información de todos los
+usuarios a partir de su `identificador`, por lo que ahora necesitamos tener en el microservicio `dk-ms-courses` un
+objeto que tenga la estructura de la entidad `User`.
+
+Es por eso que crearemos un POJO o un DTO `User`, en mi caso será utilizando un `record` de java. Digamos que esta
+clase será una clase de modelo, no un Entity, sino una clase de modelo que representa la estructura de la entidad
+`User` del microservicio `dk-ms-users`. Por ejemplo, cuando se solicite todos los usuarios que están registrados en
+un curso, esta clase de pojo `User` nos va a servir para representar dicha información en el objeto JSON.
+
+````java
+public record User(Long id, String name, String email, String password) {
+}
+````
+
+Ahora, cuando mostremos información de un curso, necesitamos mostrar información de los usuarios que están registrados
+en dicho curso, en ese sentido, necesitamos agregar un atributo de lista de usuarios en la entidad `Course`, pero
+debemos anotarlo con `@Transient` para decirle a hibernate que ese atributo no deberá ser mapeado a ningún campo de la
+base de datos, sino más bien, es solo un campo que no es parte del contexto de persistencia de JPA/Hibernate. Solo lo
+usaremos para poblar los datos de los usuarios.
+
+````java
+
+@Entity
+@Table(name = "courses")
+public class Course {
+    /* other properties */
+
+    @Transient
+    private List<User> users = new ArrayList<>();
+
+    /* other methods */
+
+    public List<User> getUsers() {
+        return users;
+    }
+
+    public void setUsers(List<User> users) {
+        this.users = users;
+    }
+
+    /* other method */
+}
+````

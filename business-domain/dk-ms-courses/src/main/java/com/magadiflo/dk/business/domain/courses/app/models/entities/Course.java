@@ -1,5 +1,6 @@
 package com.magadiflo.dk.business.domain.courses.app.models.entities;
 
+import com.magadiflo.dk.business.domain.courses.app.models.User;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 
@@ -17,6 +18,8 @@ public class Course {
     @JoinColumn(name = "course_id")
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CourseUser> courseUsers = new ArrayList<>();
+    @Transient
+    private List<User> users = new ArrayList<>();
 
     public Long getId() {
         return id;
@@ -48,6 +51,14 @@ public class Course {
 
     public void removeCourseUser(CourseUser courseUser) {
         this.courseUsers.remove(courseUser);
+    }
+
+    public List<User> getUsers() {
+        return users;
+    }
+
+    public void setUsers(List<User> users) {
+        this.users = users;
     }
 
     @Override
