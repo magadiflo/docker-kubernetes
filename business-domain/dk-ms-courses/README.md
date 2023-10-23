@@ -628,3 +628,50 @@ public class Course {
     /* other method */
 }
 ````
+
+## Revisando tablas de la Base de Datos y agregando métodos de comunicación HTTP
+
+Si ejecutamos nuestra aplicación veremos la creación de la tabla `courses_users` y su relación con la tabla `courses`:
+
+![4.db_dk_ms_courses-courses_users](./assets/4.db_dk_ms_courses-courses_users.png)
+
+Ahora, necesitamos agregar métodos para interactuar con el microservicio `dk-ms-users`, eso lo haremos en
+la capa de servicio:
+
+````java
+public interface ICourseService {
+    /* other methods*/
+
+    Optional<User> assignExistingUserToACourse(User user, Long courseId);
+
+    Optional<User> createUserAndAssignToCourse(User user, Long courseId);
+
+    Optional<User> unassigningAnExistingUserFromACourse(User user, Long courseId);
+}
+````
+
+Por el momento solo dejaremos definido los métodos, más adelante lo implementaremos, ya que requerimos previamente
+configurar el `HTTP Feign Client` con algunos métodos para comunicarnos con el microservicio `dk-ms-users`:
+
+````java
+
+@Service
+public class CourseServiceImpl implements ICourseService {
+    /* other methods */
+
+    @Override
+    public Optional<User> assignExistingUserToACourse(User user, Long courseId) {
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<User> createUserAndAssignToCourse(User user, Long courseId) {
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<User> unassigningAnExistingUserFromACourse(User user, Long courseId) {
+        return Optional.empty();
+    }
+}
+````

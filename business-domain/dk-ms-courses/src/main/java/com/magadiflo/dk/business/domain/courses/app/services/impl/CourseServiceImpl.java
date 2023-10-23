@@ -1,5 +1,6 @@
 package com.magadiflo.dk.business.domain.courses.app.services.impl;
 
+import com.magadiflo.dk.business.domain.courses.app.models.User;
 import com.magadiflo.dk.business.domain.courses.app.models.entities.Course;
 import com.magadiflo.dk.business.domain.courses.app.repositories.ICourseRepository;
 import com.magadiflo.dk.business.domain.courses.app.services.ICourseService;
@@ -54,5 +55,20 @@ public class CourseServiceImpl implements ICourseService {
                     this.courseRepository.deleteById(courseDB.getId());
                     return true;
                 });
+    }
+
+    @Override
+    public Optional<User> assignExistingUserToACourse(User user, Long courseId) {
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<User> createUserAndAssignToCourse(User user, Long courseId) {
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<User> unassigningAnExistingUserFromACourse(User user, Long courseId) {
+        return Optional.empty();
     }
 }
