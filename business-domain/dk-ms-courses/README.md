@@ -258,7 +258,7 @@ logging:
 Como tenemos la configuración `spring.jpa.generate-ddl=true`, al ejecutar la aplicación por primera vez, hibernate
 creará la tabla `courses` en la BD a partir de la entidad `Course`:
 
-![courses-table](./assets/courses-table.png)
+![1.courses-table](./assets/1.courses-table.png)
 
 ## Probando API Restful de dk-ms-courses
 
@@ -466,5 +466,115 @@ $ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"  \"}" ht
   "errors": {
     "name": "Ocurrió un error, el campo name must not be blank"
   }
+}
+````
+
+---
+
+# Sección 5: Cliente HTTP Feign: Comunicación entre microservicios
+
+---
+
+## Creando JPA Entity intermedio CourseUser
+
+Hasta este punto tenemos creados nuestros dos microservicios `dk-ms-users` y `dk-ms-courses`, cada uno manejando su
+propia base de datos, aunque solo teemos una tabla en cada microservicio.
+
+Llega el momento de establecer la comunicación entre estos dos microservicios, pero para eso necesitamos entender cómo
+es que a nivel de base de datos se relacionan sus tablas.
+
+Si imaginamos un diagrama único de nuestra base de datos veríamos lo siguiente:
+
+![2.many-to-many-relationship](./assets/2.many-to-many-relationship.png)
+
+Tenemos una relación de `Many-To-Many` entre las tablas `courses` y `users` (serían los alumnos, así lo definió el
+tutor) y a partir de la relación de `Many-To-Many` creamos una tabla intermedia llamada `courses_users` quien contendrá
+las referencias a las tablas a través de los `Foreign Key`. En esta relación, podemos ver que un usuario puede estar en
+muchos cursos, así como un curso puede tener muchos usuarios.
+
+> **Importante**: El conjunto `(course_id, user_id)` deben ser únicos, de esa forma evitamos la duplicidad de datos.
+
+Recordemos que la tabla `users` le pertenece al microservicio `dk-ms-users` y está en `MySQL`, mientras que la tabla
+`courses` le pertenece al microservicio `dk-ms-courses` y está en `PostgreSQL`, la pregunta es
+**¿dónde va la tabla intermedia?**
+
+Analizando la pregunta anterior, llegamos a la conclusión de que la tabla intermedia `courses_users` debería estar en
+el microservicio de `dk-ms-courses` ya que de por sí, un curso necesariamente requiere usuarios que estén registrados
+en él para que tenga sentido su razón de existencia, por lo tanto, llevaremos ese control en dicho microservicio.
+
+![3.many-to-many-organizacion](./assets/3.many-to-many-organizacion.png)
+
+Listo, una vez habiendo definido la ubicación de la tabla intermedia, llega el momento de crear la entidad
+correspondiente y establecer la relación.
+
+A continuación creamos la entidad `CourseUser` correspondiente a la tabla `courses_users` donde debemos observar varios
+aspectos importantes:
+
+1. Definimos como únicos al conjunto de columnas `course_id, user_id`.
+2. Definimos la propiedad `userId` correspondiente al campo `user_id` que será la `Fokeing Key` que apunta a la `PK`
+   de la tabla `users` que está en el microservicio `dk-ms-users`.
+3. Sobreescribimos el método `equals()` para decirle a hibernate que cuando se compare una entidad del tipo
+   `CourseUser` lo haga a través de la propiedad `userId`.
+
+````java
+
+@Entity
+@Table(name = "courses_users", uniqueConstraints = {@UniqueConstraint(columnNames = {"course_id", "user_id"})})
+public class CourseUser {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    @Column(name = "user_id")
+    private Long userId;
+
+    /* Getter and setter */
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        CourseUser that = (CourseUser) o;
+        return Objects.equals(userId, that.userId);
+    }
+
+    /* toString() method */
+}
+````
+
+Ahora, en la entidad `Course` establecemos la relación con la entidad `CourseUser`. Observemos que además hemos creado
+dos métodos adicionales `addCourseUser()` y `removeCourseUser()`, precisamente para eso fue que sobreescribiemos el
+método `equals()` de la entidad `CourseUser`, para que cuando usemos el método `removeCourseUser()` elimine la entidad
+estableciendo la comparación por la propiedad `userId` de la entidad `CourseUser`:
+
+````java
+
+@Entity
+@Table(name = "courses")
+public class Course {
+    /* id and name properties */
+
+    @JoinColumn(name = "course_id")
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CourseUser> courseUsers = new ArrayList<>();
+
+    /* Getters and Setters from id and name */
+
+    public List<CourseUser> getCourseUsers() {
+        return courseUsers;
+    }
+
+    public void setCourseUsers(List<CourseUser> courseUsers) {
+        this.courseUsers = courseUsers;
+    }
+
+    public void addCourseUser(CourseUser courseUser) {
+        this.courseUsers.add(courseUser);
+    }
+
+    public void removeCourseUser(CourseUser courseUser) {
+        this.courseUsers.remove(courseUser);
+    }
+
+    /* toString() method */
 }
 ````
