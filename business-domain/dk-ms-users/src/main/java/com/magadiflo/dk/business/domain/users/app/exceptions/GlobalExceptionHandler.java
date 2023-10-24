@@ -2,6 +2,7 @@ package com.magadiflo.dk.business.domain.users.app.exceptions;
 
 import com.magadiflo.dk.business.domain.users.app.dtos.ExceptionHttpResponse;
 import com.magadiflo.dk.business.domain.users.app.exceptions.domain.EmailExistException;
+import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -33,6 +34,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EmailExistException.class)
     public ResponseEntity<ExceptionHttpResponse> emailExistException(EmailExistException exception) {
         return this.exceptionHttpResponse(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
+    @ExceptionHandler(FeignException.class)
+    public ResponseEntity<ExceptionHttpResponse> feignException(FeignException exception) {
+        String message = "Error en la comunicación entre microservicios: " + exception.getMessage();
+        return this.exceptionHttpResponse(HttpStatus.INTERNAL_SERVER_ERROR, message);
     }
 
     private ResponseEntity<ExceptionHttpResponse> exceptionHttpResponse(HttpStatus httpStatus, String message) {

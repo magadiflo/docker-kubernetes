@@ -712,3 +712,137 @@ $ curl -v http://localhost:8001/api/v1/users/group?userIds=2,3 | jq
   }
 ]
 ````
+
+## Agregando cliente http para eliminar alumno de dk-ms-courses
+
+Como vamos a trabajar con el cliente `HTTP Feign Client` necesitamos agregar la anotación en la clase principal:
+
+````java
+
+@EnableFeignClients
+@SpringBootApplication
+public class DkMsUsersApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(DkMsUsersApplication.class, args);
+    }
+
+}
+````
+
+Ahora creamos la interfaz que consumirá la API de nuestro microservicio `dk-ms-courses`:
+
+````java
+
+@FeignClient(name = "dk-ms-courses", url = "localhost:8002", path = "/api/v1/courses")
+public interface ICourseFeignClient {
+    @DeleteMapping(path = "/unassigning-user-by-userid/{userId}")
+    void unassigningUserByUserId(@PathVariable Long userId);
+}
+````
+
+Como vamos a trabajar con `Http Feign Client` necesitamos manejar los errores que pueda producir. Para eso, crearemos
+un manejador de excepción del tipo `FeignException` en nuestro controlador `@RestControllerAdvice`:
+
+````java
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    /* other methods */
+    @ExceptionHandler(FeignException.class)
+    public ResponseEntity<ExceptionHttpResponse> feignException(FeignException exception) {
+        String message = "Error en la comunicación entre microservicios: " + exception.getMessage();
+        return this.exceptionHttpResponse(HttpStatus.INTERNAL_SERVER_ERROR, message);
+    }
+    /* other methods */
+}
+````
+
+Finalmente, en la clase de implementación del servicio mandamos a al endpoint implementado:
+
+````java
+
+@Service
+public class UserServiceImpl implements IUserService {
+    /* other code */
+    private final ICourseFeignClient courseFeignClient;
+    /* other methods */
+
+    @Override
+    @Transactional
+    public Optional<Boolean> deleteUserById(Long id) {
+        return this.userRepository.findById(id)
+                .map(userDB -> {
+                    this.userRepository.deleteById(userDB.getId());
+                    this.courseFeignClient.unassigningUserByUserId(id);
+                    return true;
+                });
+    }
+}
+````
+
+Verificamos los usuarios asignados a los cursos:
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[
+  {
+    "id": 1,
+    "name": "Kubernetes",
+    "courseUsers": [
+      {
+        "id": 1,
+        "userId": 2
+      },
+      {
+        "id": 2,
+        "userId": 5
+      }
+    ],
+    "users": []
+  },
+  {...}
+]
+````
+
+En el microservicio `dk-ms-users` eliminamos el usuario con ` id = 5`. Ahora, como ese usuario está asignado al curso
+de `Kubernetes`, por debajo el microservicio `dk-ms-users` debe ir al microservicio `dk-ms-courses` y eliminar dicho
+usuario:
+
+````bash
+$ curl -v -X DELETE http://localhost:8001/api/v1/users/5 | jq
+
+>
+< HTTP/1.1 204
+< Date: Tue, 24 Oct 2023 18:00:22 GMT
+<
+````
+
+Si volvemos a listar los cursos:
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[
+  {
+    "id": 1,
+    "name": "Kubernetes",
+    "courseUsers": [
+      {
+        "id": 1,
+        "userId": 2
+      }
+    ],
+    "users": []
+  },
+  {...}
+````
