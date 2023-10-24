@@ -77,6 +77,13 @@ public class CourseServiceImpl implements ICourseService {
 
     @Override
     @Transactional
+    public Optional<Boolean> deleteCurseUserById(Long userId) {
+        this.courseRepository.deleteCurseUserById(userId);
+        return Optional.of(true);
+    }
+
+    @Override
+    @Transactional
     public Optional<User> assignExistingUserToACourse(User user, Long courseId) {
         return this.courseRepository.findById(courseId)
                 .map(courseDB -> {

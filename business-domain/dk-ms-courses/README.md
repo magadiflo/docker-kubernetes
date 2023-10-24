@@ -1165,3 +1165,68 @@ $ curl -v http://localhost:8002/api/v1/courses/1 | jq
   ]
 }
 ````
+
+## Des-asignar un usuario del curso al ser eliminado en el dk-ms-users
+
+Cuando eliminemos un usuario en desde el microservicio `dk-ms-users` internamente se hará una petición al
+`dk-ms-courses` para eliminar el usuario de la tabla `course_users` si está asignado.
+
+Creamos un método personalizado para eliminar el usuario asignado de la entidad `CourseUser`:
+
+````java
+public interface ICourseRepository extends CrudRepository<Course, Long> {
+
+    @Modifying
+    @Query("""
+            DELETE FROM CourseUser AS cu
+            WHERE cu.userId = :userId
+            """)
+    void deleteCurseUserById(@Param("userId") Long userId);
+}
+````
+
+En la interfaz `ICourseService` definimos el método donde llamaremos al método anterior:
+
+````java
+public interface ICourseService {
+    /* other methods */
+    Optional<Boolean> deleteCurseUserById(Long userId);
+    /* other methods */
+}
+````
+
+Ahora implementamos el servicio:
+
+````java
+
+@Service
+public class CourseServiceImpl implements ICourseService {
+    /* other methods */
+    @Override
+    @Transactional
+    public Optional<Boolean> deleteCurseUserById(Long userId) {
+        this.courseRepository.deleteCurseUserById(userId);
+        return Optional.of(true);
+    }
+    /* other methods */
+}
+````
+
+Finalmente, en la clase de controlador definimos el nuevo endpoint que solo recibirá el id del usuario que
+des-asignaremos de la tabla `course_users`:
+
+````java
+
+@RestController
+@RequestMapping(path = "/api/v1/courses")
+public class CourseController {
+    /* other methods */
+    @DeleteMapping(path = "/unassigning-user-by-userid/{userId}")
+    public ResponseEntity<Void> unassigningUserByUserId(@PathVariable Long userId) {
+        return this.courseService.deleteCurseUserById(userId)
+                .map(wasDeleted -> new ResponseEntity<Void>(HttpStatus.NO_CONTENT))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+}
+````
+

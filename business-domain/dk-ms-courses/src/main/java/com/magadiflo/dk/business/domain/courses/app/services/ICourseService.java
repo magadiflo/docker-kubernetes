@@ -18,6 +18,7 @@ public interface ICourseService {
     Optional<Course> updateCourse(Long id, Course courseWithChangeData);
 
     Optional<Boolean> deleteCourseById(Long id);
+    Optional<Boolean> deleteCurseUserById(Long userId);
 
     Optional<User> assignExistingUserToACourse(User user, Long courseId);
 

@@ -86,4 +86,11 @@ public class CourseController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @DeleteMapping(path = "/unassigning-user-by-userid/{userId}")
+    public ResponseEntity<Void> unassigningUserByUserId(@PathVariable Long userId) {
+        return this.courseService.deleteCurseUserById(userId)
+                .map(wasDeleted -> new ResponseEntity<Void>(HttpStatus.NO_CONTENT))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
 }
