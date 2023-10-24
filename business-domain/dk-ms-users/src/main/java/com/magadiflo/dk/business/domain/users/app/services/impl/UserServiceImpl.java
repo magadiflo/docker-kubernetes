@@ -31,6 +31,7 @@ public class UserServiceImpl implements IUserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<User> findAllById(Iterable<Long> ids) {
         return (List<User>) this.userRepository.findAllById(ids);
     }

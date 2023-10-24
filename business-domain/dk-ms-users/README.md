@@ -663,6 +663,7 @@ Implementamos el método anterior en la clase de servicio:
 public class UserServiceImpl implements IUserService {
     /* other methods */
     @Override
+    @Transactional(readOnly = true)
     public List<User> findAllById(Iterable<Long> ids) {
         return (List<User>) this.userRepository.findAllById(ids);
     }

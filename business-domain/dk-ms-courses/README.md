@@ -1049,3 +1049,119 @@ $ curl -v -X PUT -H "Content-Type: application/json" -d "{\"id\": 10, \"name\": 
   "message": "Error en la comunicación entre microservicios: [404] during [GET] to [http://localhost:8001/api/v1/users/10] [IUserFeignClient#getUser(Long)]: []"
 }
 ````
+
+## dk-ms-courses detalle del curso con los alumnos asignados
+
+Como en el microservicio `dk-ms-users` implementamos un nuevo endpoint para obtener el detalle completo de los usuarios,
+ahora, en este microservicio llega el momento de usarlo. Para eso necesitamos consumir dicho endpoint usando nuestro
+cliente feign:
+
+````java
+
+@FeignClient(name = "dk-ms-users", url = "localhost:8001", path = "/api/v1/users")
+public interface IUserFeignClient {
+    /* other method */
+
+    // Usamos Iterable dentro del parámetro del método en reemplazo de List, ya que como estamos usando Feign para 
+    // consumir el endpoint, aparentemente si usamos List, nos traería problemas.
+    @GetMapping(path = "/group")
+    List<User> findAllById(@RequestParam Iterable<Long> userIds);
+
+    /* other method */
+}
+````
+
+En la interfaz `ICourseService` agregamos el nuevo método para buscar el curso por su id y que nos retorne con los
+detalles completos de sus usuarios:
+
+````java
+public interface ICourseService {
+    /* other methods */
+    Optional<Course> findCourseByIdWithFullUsersDetails(Long id);
+    /* other methods */
+}
+````
+
+Ahora, implementamos el método anterior en la clase de servicio:
+
+````java
+
+@Service
+public class CourseServiceImpl implements ICourseService {
+    /* other methods */
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Course> findCourseByIdWithFullUsersDetails(Long id) {
+        return this.courseRepository.findById(id)
+                .map(courseDB -> {
+                    if (!courseDB.getCourseUsers().isEmpty()) {
+                        List<Long> userIds = courseDB.getCourseUsers().stream().map(CourseUser::getUserId).toList();
+                        List<User> users = this.userFeignClient.findAllById(userIds);
+                        courseDB.setUsers(users);
+                    }
+                    return courseDB;
+                });
+    }
+    /* other methods */
+}
+````
+
+En el controlador cambiamos el método `findCourseById()` por el que acabamos de implementar:
+
+````java
+
+@RestController
+@RequestMapping(path = "/api/v1/courses")
+public class CourseController {
+    /* other methods */
+    @GetMapping(path = "/{id}")
+    public ResponseEntity<Course> getCourse(@PathVariable Long id) {
+        return this.courseService.findCourseByIdWithFullUsersDetails(id) //<-- Utilizando nuestro nuevo método
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+    /* other methods */
+}
+````
+
+Verificamos el resultado y vemos que ahora la propiedad `users` que en secciones iniciales siempre nos devolvía
+un arreglo vacío, ahora ya viene poblado con el detalle completo de cada usuario.
+
+Otra cosa a notar es que la propiedad `courseUsers` ya no debería mostrarse, eso podría solucionarse si trabajamos con
+`DTOs`.
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses/1 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+{
+  "id": 1,
+  "name": "Kubernetes",
+  "courseUsers": [
+    {
+      "id": 1,
+      "userId": 2
+    },
+    {
+      "id": 2,
+      "userId": 5
+    }
+  ],
+  "users": [
+    {
+      "id": 2,
+      "name": "Martin",
+      "email": "martin@gmail.com",
+      "password": "12345"
+    },
+    {
+      "id": 5,
+      "name": "Alicia",
+      "email": "alicia@gmail.com",
+      "password": "12345"
+    }
+  ]
+}
+````

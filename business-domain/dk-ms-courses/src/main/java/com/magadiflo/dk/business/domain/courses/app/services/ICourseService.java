@@ -11,6 +11,8 @@ public interface ICourseService {
 
     Optional<Course> findCourseById(Long id);
 
+    Optional<Course> findCourseByIdWithFullUsersDetails(Long id);
+
     Course saveCourse(Course course);
 
     Optional<Course> updateCourse(Long id, Course courseWithChangeData);

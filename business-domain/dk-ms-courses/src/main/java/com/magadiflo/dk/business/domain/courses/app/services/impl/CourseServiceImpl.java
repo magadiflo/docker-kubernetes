@@ -35,6 +35,20 @@ public class CourseServiceImpl implements ICourseService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<Course> findCourseByIdWithFullUsersDetails(Long id) {
+        return this.courseRepository.findById(id)
+                .map(courseDB -> {
+                    if (!courseDB.getCourseUsers().isEmpty()) {
+                        List<Long> userIds = courseDB.getCourseUsers().stream().map(CourseUser::getUserId).toList();
+                        List<User> users = this.userFeignClient.findAllById(userIds);
+                        courseDB.setUsers(users);
+                    }
+                    return courseDB;
+                });
+    }
+
+    @Override
     @Transactional
     public Course saveCourse(Course course) {
         return this.courseRepository.save(course);
