@@ -1,6 +1,7 @@
 package com.magadiflo.dk.business.domain.courses.app.exceptions;
 
 import com.magadiflo.dk.business.domain.courses.app.dtos.ExceptionHttpResponse;
+import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -27,6 +28,12 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.toMap(FieldError::getField, this::messageFieldError));
 
         return this.httpResponse(HttpStatus.BAD_REQUEST, "Error al validar los campos", fieldErrors);
+    }
+
+    @ExceptionHandler(FeignException.class)
+    public ResponseEntity<ExceptionHttpResponse> feignException(FeignException exception) {
+        String message = "Error en la comunicación entre microservicios: " + exception.getMessage();
+        return this.exceptionHttpResponse(HttpStatus.INTERNAL_SERVER_ERROR, message);
     }
 
     private ResponseEntity<ExceptionHttpResponse> exceptionHttpResponse(HttpStatus httpStatus, String message) {

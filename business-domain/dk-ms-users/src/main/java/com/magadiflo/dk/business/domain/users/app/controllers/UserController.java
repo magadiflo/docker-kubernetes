@@ -32,6 +32,11 @@ public class UserController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @GetMapping(path = "/group")
+    public ResponseEntity<List<User>> findAllById(@RequestParam List<Long> userIds) {
+        return ResponseEntity.ok(this.userService.findAllById(userIds));
+    }
+
     @PostMapping
     public ResponseEntity<User> saveUser(@Valid @RequestBody User user) {
         User userDB = this.userService.saveUser(user);
