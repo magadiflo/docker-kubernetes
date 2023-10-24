@@ -828,7 +828,7 @@ public class CourseServiceImpl implements ICourseService {
     public Optional<User> assignExistingUserToACourse(User user, Long courseId) {
         return this.courseRepository.findById(courseId)
                 .map(courseDB -> {
-                    User userMsDB = this.userFeignClient.getUser(user.id());
+                    User userMsDB = this.userFeignClient.getUser(user.id()); //<-- Puede ocurrir un FeignException
                     this.assignUserToCourse(userMsDB, courseDB);
                     return userMsDB;
                 });
@@ -839,7 +839,7 @@ public class CourseServiceImpl implements ICourseService {
     public Optional<User> createUserAndAssignToCourse(User user, Long courseId) {
         return this.courseRepository.findById(courseId)
                 .map(courseDB -> {
-                    User userMsDB = this.userFeignClient.saveUser(user);
+                    User userMsDB = this.userFeignClient.saveUser(user); //<-- Puede ocurrir un FeignException
                     this.assignUserToCourse(userMsDB, courseDB);
                     return userMsDB;
                 });
@@ -850,7 +850,7 @@ public class CourseServiceImpl implements ICourseService {
     public Optional<User> unassigningAnExistingUserFromACourse(User user, Long courseId) {
         return this.courseRepository.findById(courseId)
                 .map(courseDB -> {
-                    User userMsDB = this.userFeignClient.getUser(user.id());
+                    User userMsDB = this.userFeignClient.getUser(user.id()); //<-- Puede ocurrir un FeignException
                     CourseUser courseUser = new CourseUser();
                     courseUser.setUserId(userMsDB.id());
                     courseDB.removeCourseUser(courseUser);// Aquí comparará por el userId que definimos en el método equals
@@ -865,5 +865,68 @@ public class CourseServiceImpl implements ICourseService {
         courseDB.addCourseUser(courseUser);
         this.courseRepository.save(courseDB);
     }
+}
+````
+
+Notar que en la comunicación que realizamos con `FeignClient` podemos obtener errores, ya que nos comunicamos con otro
+microservicio y por ejemplo, se puede ir la red, el servidor del otro microservicio puede caerse, existe latencia,
+el usuario que se busca no existe, etc. por lo que de alguna manera debemos manejar el error que se produzca para
+enviarle al cliente. En la siguiente sección manejaremos esa posible excepción que pueda ocurrir.
+
+## Añadiendo métodos de comunicación en el controlador rest
+
+Como se comentó en la sección anterior, **necesitamos manejar las excepciones producidas por nuestro cliente Feign**,
+eso lo haremos en nuestro `@RestControllerAdvice`:
+
+````java
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    /* other code */
+    @ExceptionHandler(FeignException.class)
+    public ResponseEntity<ExceptionHttpResponse> feignException(FeignException exception) {
+        String message = "Error en la comunicación entre microservicios: " + exception.getMessage();
+        return this.exceptionHttpResponse(HttpStatus.INTERNAL_SERVER_ERROR, message);
+    }
+    /* other code */
+}
+````
+
+Ahora sí, con total tranquilidad nos vamos a implementar nuestro controlador:
+
+````java
+
+@RestController
+@RequestMapping(path = "/api/v1/courses")
+public class CourseController {
+    /* other code */
+    @PutMapping(path = "/assign-user-to-course/{courseId}")
+    public ResponseEntity<User> assignExistingUserToACourse(@RequestBody User user, @PathVariable Long courseId) {
+        return this.courseService.assignExistingUserToACourse(user, courseId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PostMapping(path = "/create-user-and-assign-to-course/{courseId}")
+    public ResponseEntity<User> createUserAndAssignToCourse(@RequestBody User user, @PathVariable Long courseId) {
+        return this.courseService.createUserAndAssignToCourse(user, courseId)
+                .map(userDB -> {
+                    URI location = ServletUriComponentsBuilder
+                            .fromCurrentRequest()
+                            .path("/{id}")
+                            .buildAndExpand(userDB.id())
+                            .toUri();
+                    return ResponseEntity.created(location).body(userDB);
+                })
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping(path = "/unassigning-user-from-a-course/{courseId}")
+    public ResponseEntity<User> unassigningAnExistingUserFromACourse(@RequestBody User user, @PathVariable Long courseId) {
+        return this.courseService.unassigningAnExistingUserFromACourse(user, courseId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+    /* other code */
 }
 ````

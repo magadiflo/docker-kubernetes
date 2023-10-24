@@ -1,5 +1,6 @@
 package com.magadiflo.dk.business.domain.courses.app.controllers;
 
+import com.magadiflo.dk.business.domain.courses.app.models.User;
 import com.magadiflo.dk.business.domain.courses.app.models.entities.Course;
 import com.magadiflo.dk.business.domain.courses.app.services.ICourseService;
 import jakarta.validation.Valid;
@@ -54,6 +55,34 @@ public class CourseController {
     public ResponseEntity<Void> deleteCourse(@PathVariable Long id) {
         return this.courseService.deleteCourseById(id)
                 .map(wasDeleted -> new ResponseEntity<Void>(HttpStatus.NO_CONTENT))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PutMapping(path = "/assign-user-to-course/{courseId}")
+    public ResponseEntity<User> assignExistingUserToACourse(@RequestBody User user, @PathVariable Long courseId) {
+        return this.courseService.assignExistingUserToACourse(user, courseId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PostMapping(path = "/create-user-and-assign-to-course/{courseId}")
+    public ResponseEntity<User> createUserAndAssignToCourse(@RequestBody User user, @PathVariable Long courseId) {
+        return this.courseService.createUserAndAssignToCourse(user, courseId)
+                .map(userDB -> {
+                    URI location = ServletUriComponentsBuilder
+                            .fromCurrentRequest()
+                            .path("/{id}")
+                            .buildAndExpand(userDB.id())
+                            .toUri();
+                    return ResponseEntity.created(location).body(userDB);
+                })
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping(path = "/unassigning-user-from-a-course/{courseId}")
+    public ResponseEntity<User> unassigningAnExistingUserFromACourse(@RequestBody User user, @PathVariable Long courseId) {
+        return this.courseService.unassigningAnExistingUserFromACourse(user, courseId)
+                .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
