@@ -3,6 +3,7 @@ package com.magadiflo.dk.business.domain.courses.app.services.impl;
 import com.magadiflo.dk.business.domain.courses.app.clients.IUserFeignClient;
 import com.magadiflo.dk.business.domain.courses.app.models.User;
 import com.magadiflo.dk.business.domain.courses.app.models.entities.Course;
+import com.magadiflo.dk.business.domain.courses.app.models.entities.CourseUser;
 import com.magadiflo.dk.business.domain.courses.app.repositories.ICourseRepository;
 import com.magadiflo.dk.business.domain.courses.app.services.ICourseService;
 import org.springframework.stereotype.Service;
@@ -61,17 +62,45 @@ public class CourseServiceImpl implements ICourseService {
     }
 
     @Override
+    @Transactional
     public Optional<User> assignExistingUserToACourse(User user, Long courseId) {
-        return Optional.empty();
+        return this.courseRepository.findById(courseId)
+                .map(courseDB -> {
+                    User userMsDB = this.userFeignClient.getUser(user.id());
+                    this.assignUserToCourse(userMsDB, courseDB);
+                    return userMsDB;
+                });
     }
 
     @Override
+    @Transactional
     public Optional<User> createUserAndAssignToCourse(User user, Long courseId) {
-        return Optional.empty();
+        return this.courseRepository.findById(courseId)
+                .map(courseDB -> {
+                    User userMsDB = this.userFeignClient.saveUser(user);
+                    this.assignUserToCourse(userMsDB, courseDB);
+                    return userMsDB;
+                });
     }
 
     @Override
+    @Transactional
     public Optional<User> unassigningAnExistingUserFromACourse(User user, Long courseId) {
-        return Optional.empty();
+        return this.courseRepository.findById(courseId)
+                .map(courseDB -> {
+                    User userMsDB = this.userFeignClient.getUser(user.id());
+                    CourseUser courseUser = new CourseUser();
+                    courseUser.setUserId(userMsDB.id());
+                    courseDB.removeCourseUser(courseUser);// aquí comparará por el userId que definimos en el método equals
+                    this.courseRepository.save(courseDB);
+                    return userMsDB;
+                });
+    }
+
+    private void assignUserToCourse(User userMsDB, Course courseDB) {
+        CourseUser courseUser = new CourseUser();
+        courseUser.setUserId(userMsDB.id());
+        courseDB.addCourseUser(courseUser);
+        this.courseRepository.save(courseDB);
     }
 }

@@ -809,3 +809,61 @@ public class CourseServiceImpl implements ICourseService {
     /* other code */
 }
 ````
+
+## Añadiendo e implementando métodos de comunicación HTTP en el Service
+
+Implementamos los métodos que quedaron pendientes en el servicio `CourseServiceImpl`. Recordar que los dejamos
+pendientes porque previamente requerimos definir el cliente feign, ya que estos métodos requieren hacer llamadas al
+microservicio de usuarios para su funcionamiento.
+
+````java
+
+@Service
+public class CourseServiceImpl implements ICourseService {
+
+    /* other properties and methods */
+
+    @Override
+    @Transactional
+    public Optional<User> assignExistingUserToACourse(User user, Long courseId) {
+        return this.courseRepository.findById(courseId)
+                .map(courseDB -> {
+                    User userMsDB = this.userFeignClient.getUser(user.id());
+                    this.assignUserToCourse(userMsDB, courseDB);
+                    return userMsDB;
+                });
+    }
+
+    @Override
+    @Transactional
+    public Optional<User> createUserAndAssignToCourse(User user, Long courseId) {
+        return this.courseRepository.findById(courseId)
+                .map(courseDB -> {
+                    User userMsDB = this.userFeignClient.saveUser(user);
+                    this.assignUserToCourse(userMsDB, courseDB);
+                    return userMsDB;
+                });
+    }
+
+    @Override
+    @Transactional
+    public Optional<User> unassigningAnExistingUserFromACourse(User user, Long courseId) {
+        return this.courseRepository.findById(courseId)
+                .map(courseDB -> {
+                    User userMsDB = this.userFeignClient.getUser(user.id());
+                    CourseUser courseUser = new CourseUser();
+                    courseUser.setUserId(userMsDB.id());
+                    courseDB.removeCourseUser(courseUser);// Aquí comparará por el userId que definimos en el método equals
+                    this.courseRepository.save(courseDB);
+                    return userMsDB;
+                });
+    }
+
+    private void assignUserToCourse(User userMsDB, Course courseDB) {
+        CourseUser courseUser = new CourseUser();
+        courseUser.setUserId(userMsDB.id());
+        courseDB.addCourseUser(courseUser);
+        this.courseRepository.save(courseDB);
+    }
+}
+````
