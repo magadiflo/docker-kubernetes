@@ -930,3 +930,122 @@ public class CourseController {
     /* other code */
 }
 ````
+
+## Probando comunicaciones HTTP entre microservicios
+
+Llegó el momento de probar el funcionamiento de los nuevos endpoints en el microservicio de cursos:
+
+- Asignando un usuario existente a un curso:
+
+````bash
+$ curl -v -X PUT -H "Content-Type: application/json" -d "{\"id\": 2, \"name\": \"Martin\", \"email\": \"martin@gmail.com\", \"password\": \"12345\"}" http://localhost:8002/api/v1/courses/assign-user-to-course/1 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 2,
+  "name": "Martin",
+  "email": "martin@gmail.com",
+  "password": "12345"
+}
+````
+
+- Creando un usuario y luego asignándolo a un curso:
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"Alicia\", \"email\": \"alicia@gmail.com\", \"password\": \"12345\"}" http://localhost:8002/api/v1/courses/create-user-and-assign-to-course/1 | jq
+
+>
+< HTTP/1.1 201
+< Location: http://localhost:8002/api/v1/courses/create-user-and-assign-to-course/1/5
+< Content-Type: application/json
+<
+{
+  "id": 5,
+  "name": "Alicia",
+  "email": "alicia@gmail.com",
+  "password": "12345"
+}
+````
+
+- Des-asignando un usuario de un curso:
+
+````bash
+$ curl -v -X DELETE -H "Content-Type: application/json" -d "{\"id\": 6, \"name\": \"Alison\", \"email\": \"alison@gmail.com\", \"password\": \"12345\"}" http://localhost:8002/api/v1/courses/unassigning-user-from-a-course/2 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 6,
+  "name": "Alison",
+  "email": "alison@gmail.com",
+  "password": "12345"
+}
+````
+
+- **Listando los cursos:** A continuación debemos notar que el curso con `id = 1` tiene dos usuarios asignados, pero
+  únicamente vemos el identificador, es decir no vemos el detalle completo del usuario, eso está bien, ya que lo que en
+  realidad se está mostrando es la entidad `CourseUser` que como vimos, este únicamente tiene el identificador del
+  usuario como atributo. Ahora, si queremos ver toda la información del usuario, eso se hará más adelante y se poblará
+  en el atributo `users`, que como vemos, ahora está vacío. Otro punto a añadir es que esos detalles del usuario, los
+  mostraremos únicamente cuando veamos un curso determinado y no cuando traigamos todos los cursos como en el resultado
+  de abajo, eso lo hacemos por temas de rendimiento.
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[
+  {
+    "id": 1,
+    "name": "Kubernetes",
+    "courseUsers": [
+      {
+        "id": 1,
+        "userId": 2
+      },
+      {
+        "id": 2,
+        "userId": 5
+      }
+    ],
+    "users": []
+  },
+  {
+    "id": 2,
+    "name": "Angular",
+    "courseUsers": [],
+    "users": []
+  },
+  {
+    "id": 3,
+    "name": "Docker",
+    "courseUsers": [],
+    "users": []
+  }
+]
+````
+
+- Probando manejo de error cuando ocurre una excepción del `Feign Client`:
+
+````bash
+$ curl -v -X PUT -H "Content-Type: application/json" -d "{\"id\": 10, \"name\": \"Hacker\", \"email\": \"hacker@gmail.com\", \"password\": \"12345\"}" http://localhost:8002/api/v1/courses/assign-user-to-course/1 | jq
+
+>
+< HTTP/1.1 500
+< Content-Type: application/json
+<
+{
+  "timestamp": "2023-10-23T23:53:19.3384155",
+  "statusCode": 500,
+  "httpStatus": "INTERNAL_SERVER_ERROR",
+  "message": "Error en la comunicación entre microservicios: [404] during [GET] to [http://localhost:8001/api/v1/users/10] [IUserFeignClient#getUser(Long)]: []"
+}
+````
