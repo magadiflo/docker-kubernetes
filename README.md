@@ -232,3 +232,17 @@ su `pom.xml`:
 > definida en su `pom.xml`, tendrá todas las dependencias desde el proyecto raíz, pues tiene como
 > padre `business-domain` y este a su vez tiene como padre al proyecto raíz `docker-kubernetes`.
 
+---
+
+# Sección 5: Cliente HTTP Feign: Comunicación entre microservicios
+
+---
+
+## Introducción conectando microservicios
+
+Luego de que hayamos construido nuestros dos microservicios `dk-ms-users` y `dk-ms-courses`, ahora debemos lograr que
+estos se comuniquen. Para eso utilizaremos el cliente `HTTP Feign Client`.
+
+La imagen siguiente muestra el panorama general de lo que haremos en esta sección:
+
+![5.relacionando-servicios](./assets/5.relacionando-servicios.png)

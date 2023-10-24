@@ -641,3 +641,208 @@ $ curl -v -X PUT -H "Content-Type: application/json" -d "{\"name\": \"Martin\", 
   "message": "Ya existe un usuario con ese email"
 }
 ````
+
+## dk-ms-users obtener alumnos por ids
+
+Crearemos un endpoint en nuestro microservicio `dk-ms-users` que nos retornará un grupo de usuarios a partir de los ids
+proporcionados.
+
+````java
+public interface IUserService {
+    /* other methods */
+    List<User> findAllById(Iterable<Long> ids);
+    /* other methods */
+}
+````
+
+Implementamos el método anterior en la clase de servicio:
+
+````java
+
+@Service
+public class UserServiceImpl implements IUserService {
+    /* other methods */
+    @Override
+    @Transactional(readOnly = true)
+    public List<User> findAllById(Iterable<Long> ids) {
+        return (List<User>) this.userRepository.findAllById(ids);
+    }
+    /* other methods */
+}
+````
+
+Finalmente, en nuestro controlador definimos el endpoint. Notar que el endpoint es del tipo `GET` y está esperando
+recibir un `RequestParam` con atributo `userIds`:
+
+````java
+
+@RestController
+@RequestMapping(path = "/api/v1/users")
+public class UserController {
+    /* other methods */
+    @GetMapping(path = "/group")
+    public ResponseEntity<List<User>> findAllById(@RequestParam List<Long> userIds) {
+        return ResponseEntity.ok(this.userService.findAllById(userIds));
+    }
+    /* other methods */
+}
+````
+
+Ejecutamos la aplicación y probamos el endpoint. Supongamos que queremos obtener los usuarios que tienen el id 2 y 3:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users/group?userIds=2,3 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[
+  {
+    "id": 2,
+    "name": "Martin",
+    "email": "martin@gmail.com",
+    "password": "12345"
+  },
+  {
+    "id": 3,
+    "name": "nophy",
+    "email": "nophy@gmail.com",
+    "password": "12345"
+  }
+]
+````
+
+## Agregando cliente http para eliminar alumno de dk-ms-courses
+
+Como vamos a trabajar con el cliente `HTTP Feign Client` necesitamos agregar la anotación en la clase principal:
+
+````java
+
+@EnableFeignClients
+@SpringBootApplication
+public class DkMsUsersApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(DkMsUsersApplication.class, args);
+    }
+
+}
+````
+
+Ahora creamos la interfaz que consumirá la API de nuestro microservicio `dk-ms-courses`:
+
+````java
+
+@FeignClient(name = "dk-ms-courses", url = "localhost:8002", path = "/api/v1/courses")
+public interface ICourseFeignClient {
+    @DeleteMapping(path = "/unassigning-user-by-userid/{userId}")
+    void unassigningUserByUserId(@PathVariable Long userId);
+}
+````
+
+Como vamos a trabajar con `Http Feign Client` necesitamos manejar los errores que pueda producir. Para eso, crearemos
+un manejador de excepción del tipo `FeignException` en nuestro controlador `@RestControllerAdvice`:
+
+````java
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    /* other methods */
+    @ExceptionHandler(FeignException.class)
+    public ResponseEntity<ExceptionHttpResponse> feignException(FeignException exception) {
+        String message = "Error en la comunicación entre microservicios: " + exception.getMessage();
+        return this.exceptionHttpResponse(HttpStatus.INTERNAL_SERVER_ERROR, message);
+    }
+    /* other methods */
+}
+````
+
+Finalmente, en la clase de implementación del servicio mandamos a al endpoint implementado:
+
+````java
+
+@Service
+public class UserServiceImpl implements IUserService {
+    /* other code */
+    private final ICourseFeignClient courseFeignClient;
+    /* other methods */
+
+    @Override
+    @Transactional
+    public Optional<Boolean> deleteUserById(Long id) {
+        return this.userRepository.findById(id)
+                .map(userDB -> {
+                    this.userRepository.deleteById(userDB.getId());
+                    this.courseFeignClient.unassigningUserByUserId(id);
+                    return true;
+                });
+    }
+}
+````
+
+Verificamos los usuarios asignados a los cursos:
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[
+  {
+    "id": 1,
+    "name": "Kubernetes",
+    "courseUsers": [
+      {
+        "id": 1,
+        "userId": 2
+      },
+      {
+        "id": 2,
+        "userId": 5
+      }
+    ],
+    "users": []
+  },
+  {...}
+]
+````
+
+En el microservicio `dk-ms-users` eliminamos el usuario con ` id = 5`. Ahora, como ese usuario está asignado al curso
+de `Kubernetes`, por debajo el microservicio `dk-ms-users` debe ir al microservicio `dk-ms-courses` y eliminar dicho
+usuario:
+
+````bash
+$ curl -v -X DELETE http://localhost:8001/api/v1/users/5 | jq
+
+>
+< HTTP/1.1 204
+< Date: Tue, 24 Oct 2023 18:00:22 GMT
+<
+````
+
+Si volvemos a listar los cursos:
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[
+  {
+    "id": 1,
+    "name": "Kubernetes",
+    "courseUsers": [
+      {
+        "id": 1,
+        "userId": 2
+      }
+    ],
+    "users": []
+  },
+  {...}
+````
