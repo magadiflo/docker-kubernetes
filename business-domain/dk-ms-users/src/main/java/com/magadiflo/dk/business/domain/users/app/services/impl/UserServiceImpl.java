@@ -31,6 +31,11 @@ public class UserServiceImpl implements IUserService {
     }
 
     @Override
+    public List<User> findAllById(Iterable<Long> ids) {
+        return (List<User>) this.userRepository.findAllById(ids);
+    }
+
+    @Override
     @Transactional
     public User saveUser(User user) {
         if (this.userRepository.existsByEmail(user.getEmail())) {

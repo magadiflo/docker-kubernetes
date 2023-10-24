@@ -641,3 +641,73 @@ $ curl -v -X PUT -H "Content-Type: application/json" -d "{\"name\": \"Martin\", 
   "message": "Ya existe un usuario con ese email"
 }
 ````
+
+## dk-ms-users obtener alumnos por ids
+
+Crearemos un endpoint en nuestro microservicio `dk-ms-users` que nos retornará un grupo de usuarios a partir de los ids
+proporcionados.
+
+````java
+public interface IUserService {
+    /* other methods */
+    List<User> findAllById(Iterable<Long> ids);
+    /* other methods */
+}
+````
+
+Implementamos el método anterior en la clase de servicio:
+
+````java
+
+@Service
+public class UserServiceImpl implements IUserService {
+    /* other methods */
+    @Override
+    public List<User> findAllById(Iterable<Long> ids) {
+        return (List<User>) this.userRepository.findAllById(ids);
+    }
+    /* other methods */
+}
+````
+
+Finalmente, en nuestro controlador definimos el endpoint. Notar que el endpoint es del tipo `GET` y está esperando
+recibir un `RequestParam` con atributo `userIds`:
+
+````java
+
+@RestController
+@RequestMapping(path = "/api/v1/users")
+public class UserController {
+    /* other methods */
+    @GetMapping(path = "/group")
+    public ResponseEntity<List<User>> findAllById(@RequestParam List<Long> userIds) {
+        return ResponseEntity.ok(this.userService.findAllById(userIds));
+    }
+    /* other methods */
+}
+````
+
+Ejecutamos la aplicación y probamos el endpoint. Supongamos que queremos obtener los usuarios que tienen el id 2 y 3:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users/group?userIds=2,3 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[
+  {
+    "id": 2,
+    "name": "Martin",
+    "email": "martin@gmail.com",
+    "password": "12345"
+  },
+  {
+    "id": 3,
+    "name": "nophy",
+    "email": "nophy@gmail.com",
+    "password": "12345"
+  }
+]
+````

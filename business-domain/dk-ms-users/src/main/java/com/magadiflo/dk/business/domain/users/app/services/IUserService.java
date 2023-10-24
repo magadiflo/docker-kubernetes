@@ -10,6 +10,8 @@ public interface IUserService {
 
     Optional<User> findUserById(Long id);
 
+    List<User> findAllById(Iterable<Long> ids);
+
     User saveUser(User user);
 
     Optional<User> updateUser(Long id, User userWithChangeData);
