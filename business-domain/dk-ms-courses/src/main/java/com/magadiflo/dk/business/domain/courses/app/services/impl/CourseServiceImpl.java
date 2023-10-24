@@ -1,5 +1,6 @@
 package com.magadiflo.dk.business.domain.courses.app.services.impl;
 
+import com.magadiflo.dk.business.domain.courses.app.clients.IUserFeignClient;
 import com.magadiflo.dk.business.domain.courses.app.models.User;
 import com.magadiflo.dk.business.domain.courses.app.models.entities.Course;
 import com.magadiflo.dk.business.domain.courses.app.repositories.ICourseRepository;
@@ -13,9 +14,11 @@ import java.util.Optional;
 @Service
 public class CourseServiceImpl implements ICourseService {
     private final ICourseRepository courseRepository;
+    private final IUserFeignClient userFeignClient;
 
-    public CourseServiceImpl(ICourseRepository courseRepository) {
+    public CourseServiceImpl(ICourseRepository courseRepository, IUserFeignClient userFeignClient) {
         this.courseRepository = courseRepository;
+        this.userFeignClient = userFeignClient;
     }
 
     @Override

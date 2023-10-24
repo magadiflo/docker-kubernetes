@@ -703,3 +703,109 @@ public class CourseServiceImpl implements ICourseService {
     }
 }
 ````
+
+## Escribiendo el Cliente HTTP con Spring Cloud Feign
+
+Como ya tenemos la dependencia de `spring-cloud-starter-openfeign` en nuestro proyecto, podemos usarlo para crear
+nuestro cliente rest del tipo Feign. Esto es una alternativa al uso de `RestTemplate` que nos permite realizar llamadas
+http para consumir servicios rest.
+
+Lo primero que haremos será agregar la anotación `@EnableFeignClients` en la clase principal del proyecto. Esta
+anotación **busca interfaces que declaren ser clientes feign (mediante la anotación @FeignClient).** Además, con
+esta anotación **habilitamos en la aplicación el contexto de feign para poder implementar nuestras api rest de forma
+declarativa**.
+
+````java
+
+@EnableFeignClients
+@SpringBootApplication
+public class DkMsCoursesApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(DkMsCoursesApplication.class, args);
+    }
+
+}
+````
+
+Ahora, necesitamos crear una interface que hará las peticiones al microservicio de usuarios, esta interfaz estará
+anotada con `@FeignClient`. Esta anotación es para interfaces que declara que debe crearse un cliente REST con esa
+interfaz (Por ejemplo, **para hacer una inyección en otro componente**). Si SC LoadBalancer está disponible, se
+utilizará para equilibrar la carga de las solicitudes del backend, y el equilibrador de carga puede configurarse
+utilizando el mismo nombre (es decir, valor) que el cliente feign.
+
+Como se mencionó anteriormente, de forma automática la interfaz anotada con `@FeignClient` se convierte en un componente
+de Spring para poder ser inyectado en otro componente. Es como cuando usamos el `CrudRepository<>`, es decir, por debajo
+se implementa la funcionalidad.
+
+A continuación se muestra nuestra interfaz `IUserFeignClient`:
+
+````java
+
+@FeignClient(name = "dk-ms-users", url = "localhost:8001", path = "/api/v1/users")
+public interface IUserFeignClient {
+    @GetMapping(path = "/{id}")
+    User getUser(@PathVariable Long id);
+
+    @PostMapping
+    User saveUser(@RequestBody User user);
+}
+````
+
+**DONDE**
+
+- `name`, corresponde al nombre del microservicio que vamos a consumir. En este caso, el nombre lo definimos en
+  la propiedad  `spring.application.name` del `application.yml` del microservicio `dk-ms-users`.
+- `url`, una URL absoluta o un nombre de host resoluble (el protocolo es opcional).
+- `path`, prefijo de ruta que deben utilizar todas las asignaciones a nivel de método.
+
+En el `IUserFeignClient` hemos definido dos métodos que corresponden a los endpoints que consumiremos del microservicio
+de usuarios. Si vamos a ese microservicio y vemos esos dos endpoints veremos lo siguiente:
+
+````java
+/**
+ * En el microservicio dk-ms-users
+ */
+@RestController
+@RequestMapping(path = "/api/v1/users")
+public class UserController {
+
+    @GetMapping(path = "/{id}")
+    public ResponseEntity<User> getUser(@PathVariable Long id) {
+        /* code */
+    }
+
+    @PostMapping
+    public ResponseEntity<User> saveUser(@Valid @RequestBody User user) {
+        /* code */
+    }
+}
+````
+
+**¿Qué podemos concluir?** el método definido en la interfaz `IUserFeignClient` es similar al que está definido en
+el controlador que consumiremos. En realidad lo que nos interesa es la firma del endpoint, lo que recibe y lo que
+retorna, el nombre del método que definamos en la interfaz da lo mismo. Ahora, otro punto a observar es que en el
+endpoint del microservicio de usuarios está retornando un `ResponseEntity<User>` y nosotros hemos colocado en la
+interfaz solo `User`, eso está bien, por debajo cuando se construya la implementación, spring lo resolverá y nos
+retornará el `User`. Por último en el método `saveUser(@Valid...)` del microservicio de usuarios está la anotación
+`@Valid` que permite validar los campos cuando se envíe a ese endpoint un objeto de usuario, pero en nuestra interfaz
+`IUserFeignClient` no lo definimos, eso es porque en esta interfaz lo que hacemos es **consumir** el endpoint, mas no
+validar los datos.
+
+Ahora que tenemos definido nuestro cliente feign, lo inyectamos en la clase de servicio para su posterior uso:
+
+````java
+
+@Service
+public class CourseServiceImpl implements ICourseService {
+
+    private final ICourseRepository courseRepository;
+    private final IUserFeignClient userFeignClient;
+
+    public CourseServiceImpl(ICourseRepository courseRepository, IUserFeignClient userFeignClient) {
+        this.courseRepository = courseRepository;
+        this.userFeignClient = userFeignClient;
+    }
+    /* other code */
+}
+````
