@@ -891,3 +891,96 @@ CMD ["java", "-jar", "app.jar"]
   el `/app`. **Es una instrucción para cuando se construyan los contenedores, no para las imágenes.** El propósito
   principal de un CMD es proporcionar valores por defecto para un contenedor en ejecución.
 
+## Construyendo nuestra primera imagen con Dockerfile y corriendo contenedor
+
+Antes de ejecutar nuestro contenedor realizaremos un cambio en el código fuente de nuestra aplicación de Spring Boot,
+ya que, **si corremos un contenedor, nuestra aplicación de Spring Boot se va a levantar dentro de él y al momento de
+iniciarse tratará de conectarse a la base de datos de MySQL**, pues en el archivo `application.yml` está especificado
+la url de conexión como `localhost`, y como nuestra aplicación de Spring Boot está dentro del contenedor, ahora ese
+`localhost` sería la parte interna del contenedor. Entonces, lo que se quiere es que nuestra aplicación de Spring
+Boot que está dentro del contenedor se comunique con MySQL que está en el lado externo, es decir, en nuestra pc local.
+
+Entonces, para solucionar el problema anterior, utilizaremos un **nombre de dominio especial de docker:**
+`host.docker.internal`, lo que hace es que la aplicación que está dentro del contenedor se pueda comunicar con una
+aplicación que está fuera, en nuestro caso con MySQL que está en nuestra **máquina host local**.
+
+````yaml
+# Other properties
+spring:
+  # Other properties
+  datasource:
+    url: jdbc:mysql://host.docker.internal:3306/db_dk_ms_users
+# Other properties
+````
+
+Listo, ahora sí, **como hicimos un cambio en el código fuente es necesario volver a generar el .jar, y también volver a
+generar la imagen.**
+
+Ubicados en la raíz del microservicio `dk-ms-users`, ejecutamos:
+
+````bash
+$ mvnw clean package -DskipTests
+````
+
+**Importante**
+> Como cambiamos la dirección de la base de datos a `host.docker.internal`, al momento de generar el .jar va a fallar
+> porque no reconocerá esa dirección. Recordemos que esa dirección solo funciona dentro del contenedor y nosotros
+> estamos generando el .jar en nuestra pc local.
+>
+> Para evitar ese fallo, o para ser más exactos, para saltarnos el test, agregaremos la bandera `-DskipTests`.
+
+Una vez generado el .jar, ejecutamos el comando para crear nuestra imagen de docker:
+
+````bash
+$ docker build .
+````
+
+**DONDE**
+
+- `.` indica el path donde está ubicado el `Dockerfile`, en nuestro caso en la raíz de nuestro
+  microservicio `dk-ms-users` donde actualmente estamos posicionados.
+
+Terminado la construcción de la imagen, podemos listarlo:
+
+````bash
+$ docker image ls
+REPOSITORY   TAG       IMAGE ID       CREATED         SIZE
+<none>       <none>    675a27a7e90b   9 minutes ago   387MB
+````
+
+Ahora, a partir de la imagen anterior creamos nuestro contenedor:
+
+````bash
+$ docker container run -p 8001:8001 675a27a7e90b
+````
+
+**DONDE**
+
+- `-p 8001:8001`, especificamos el puerto `externo:interno`. El puerto externo, es desde donde se puede acceder
+  externamente al contenedor, mientras que, el puerto interno es el que usa nuestra aplicación al interior del
+  contenedor. En nuestro caso, definimos el mismo valor para ambos puertos.
+
+Listamos los contenedores para ver el que acabamos de levantar:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE          COMMAND               CREATED          STATUS          PORTS                    NAMES
+ca7eb1d41446   675a27a7e90b   "java -jar app.jar"   33 minutes ago   Up 33 minutes   0.0.0.0:8001->8001/tcp   recursing_murdock
+````
+
+Finalmente, si accedemos a algún endpoint de la aplicación dockerizada veremos que funciona correctamente:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users/3 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 3,
+  "name": "nophy",
+  "email": "nophy@gmail.com",
+  "password": "12345"
+}
+````
