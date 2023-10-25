@@ -246,3 +246,45 @@ estos se comuniquen. Para eso utilizaremos el cliente `HTTP Feign Client`.
 La imagen siguiente muestra el panorama general de lo que haremos en esta sección:
 
 ![5.relacionando-servicios](./assets/5.relacionando-servicios.png)
+
+---
+
+# Sección 6: Docker: Introducción
+
+---
+
+## Generando archivo .jar para dockerizar
+
+Veremos de manera general cómo generar el `jar` de nuestra aplicación de spring boot y cómo ejecutarlo sin el IDE.
+
+Tomaremos como ejemplo el microservicio `dk-ms-users` para generar el `jar` de ejemplo. Nos posicionaremos en la
+terminal, en la raíz de ese microservicio y ejecutaremos el siguiente comando.
+
+**¡Importante!** debemos tener levantado la base de datos que está usando ese microservicio, ya que cuando se construya
+el jar requerirá realizar los test. Si queremos saltarnos los test podemos agregar `-DskipTests`, en mi caso sí
+tengo levantado la base de datos:
+
+````bash
+$ mvnw clean package
+````
+
+**DONDE**
+
+- `clean`, elimina todo el empaquetado que tengamos en el directorio `/target` que se haya generado en una compilación
+  anterior.
+- `package`, genera el `jar` dentro del directorio `/target`.
+
+Una vez finalizado el comando anterior, veremos que en el microservicio se creó el directorio `/target` y dentro el
+archivo `jar` compilado: `dk-ms-users-0.0.1-SNAPSHOT.jar`.
+
+### Ejecutando jar desde línea de comandos
+
+Supongamos que el `jar` generado anteriormente lo hemos llevado a una máquina remota y lo queremos levantar. Para eso
+nos posicionaremos mediante el cmd en el directorio donde hayamos puesto el `jar` y ejecutaremos el comando:
+
+````bash
+$ java -jar dk-ms-users-0.0.1-SNAPSHOT.jar
+````
+
+A continuación veremos que nuestra aplicación se empieza a levantar. La idea ahora es realizar todos estos pasos pero
+usando Docker, es decir `dockerizar` la aplicación, configurar un contenedor, una imagen, etc.

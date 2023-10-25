@@ -846,3 +846,224 @@ $ curl -v http://localhost:8002/api/v1/courses | jq
   },
   {...}
 ````
+
+---
+
+---
+
+# Sección 6: Docker: Introducción
+
+---
+
+## Creando archivo Dockerfile usando imagen OpenJDK
+
+En la raíz del microservicio `dk-ms-users` creamos el archivo `Dockerfile` y agregamos las siguientes instrucciones:
+
+````dockerfile
+FROM openjdk:17-jdk-alpine
+WORKDIR /app
+COPY ./target/*.jar ./app.jar
+EXPOSE 8001
+CMD ["java", "-jar", "app.jar"]
+````
+
+**DONDE**
+
+- `FROM openjdk:17-jdk-alpine`, usaremos como imagen base para nuestra versión 17 de java la imagen de `openjdk` cuyo
+  tag es `17-jdk-alpine`.
+- `WORKDIR /app`, crearemos un directorio de trabajo donde colocaremos nuestra aplicación y desde donde trabajaremos, no
+  es obligatorio, pero teniendo un directorio de trabajo nos aseguramos de saber exactamente dónde está nuestra
+  aplicación y dónde se está ejecutando para que cuando se acceda al contenedor sepamos exactamente dónde buscar.
+- `COPY ./target/*.jar ./app.jar`, copiamos el archivo `*.jar` que está en la ruta de nuestra máquina
+  local `(./target/*.jar)` hacia la ruta en la **imagen/contenedor** `(./app.jar)`.
+    - Podría haber colocado en vez de `*.jar` de nuestra ruta de la máquina local, el nombre completo que generamos al
+      compilar el proyecto: `dk-ms-users-0.0.1-SNAPSHOT.jar`, pero como siempre habrá un único archivo que termine con
+      extensión `.jar` es que coloco el comodín `*.jar`, de esa manera evito escribir todo el nombre.
+    - En el directorio de destino, el archivo `*.jar` que estamos copiando lo vamos a renombrar a `app.jar`.
+    - La copia se realizará hacia el `WORKDIR /app` que creamos al inicio, es decir, del `./app.jar` el `. == /app`, lo
+      que significa que la copia final quedaría `/app/app.jar`.
+- `EXPOSE 8001`, es a modo de documentación `(opcional)`. La instrucción EXPOSE informa a Docker que el contenedor
+  escucha en los puertos de red especificados en tiempo de
+  ejecución. `La instrucción EXPOSE no publica realmente el puerto`. **Funciona como un tipo de documentación entre la
+  persona que construye la imagen y la persona que ejecuta el contenedor**, sobre qué puertos están destinados a ser
+  publicados.
+- `CMD ["java", "-jar", "app.jar"]`, se ejecuta por defecto en la raíz del `WORKDIR`, o sea en nuestro caso en
+  el `/app`. **Es una instrucción para cuando se construyan los contenedores, no para las imágenes.** El propósito
+  principal de un CMD es proporcionar valores por defecto para un contenedor en ejecución.
+
+## Construyendo nuestra primera imagen con Dockerfile y corriendo contenedor
+
+Antes de ejecutar nuestro contenedor realizaremos un cambio en el código fuente de nuestra aplicación de Spring Boot,
+ya que, **si corremos un contenedor, nuestra aplicación de Spring Boot se va a levantar dentro de él y al momento de
+iniciarse tratará de conectarse a la base de datos de MySQL**, pues en el archivo `application.yml` está especificado
+la url de conexión como `localhost`, y como nuestra aplicación de Spring Boot está dentro del contenedor, ahora ese
+`localhost` sería la parte interna del contenedor. Entonces, lo que se quiere es que nuestra aplicación de Spring
+Boot que está dentro del contenedor se comunique con MySQL que está en el lado externo, es decir, en nuestra pc local.
+
+Entonces, para solucionar el problema anterior, utilizaremos un **nombre de dominio especial de docker:**
+`host.docker.internal`, lo que hace es que la aplicación que está dentro del contenedor se pueda comunicar con una
+aplicación que está fuera, en nuestro caso con MySQL que está en nuestra **máquina host local**.
+
+````yaml
+# Other properties
+spring:
+  # Other properties
+  datasource:
+    url: jdbc:mysql://host.docker.internal:3306/db_dk_ms_users
+# Other properties
+````
+
+Listo, ahora sí, **como hicimos un cambio en el código fuente es necesario volver a generar el .jar, y también volver a
+generar la imagen.**
+
+Ubicados en la raíz del microservicio `dk-ms-users`, ejecutamos:
+
+````bash
+$ mvnw clean package -DskipTests
+````
+
+**Importante**
+> Como cambiamos la dirección de la base de datos a `host.docker.internal`, al momento de generar el .jar va a fallar
+> porque no reconocerá esa dirección. Recordemos que esa dirección solo funciona dentro del contenedor y nosotros
+> estamos generando el .jar en nuestra pc local.
+>
+> Para evitar ese fallo, o para ser más exactos, para saltarnos el test, agregaremos la bandera `-DskipTests`.
+
+Una vez generado el .jar, ejecutamos el comando para crear nuestra imagen de docker:
+
+````bash
+$ docker build .
+````
+
+**DONDE**
+
+- `.` indica el path donde está ubicado el `Dockerfile`, en nuestro caso en la raíz de nuestro
+  microservicio `dk-ms-users` donde actualmente estamos posicionados.
+
+Terminado la construcción de la imagen, podemos listarlo:
+
+````bash
+$ docker image ls
+REPOSITORY   TAG       IMAGE ID       CREATED         SIZE
+<none>       <none>    675a27a7e90b   9 minutes ago   387MB
+````
+
+Ahora, a partir de la imagen anterior creamos nuestro contenedor:
+
+````bash
+$ docker container run -p 8001:8001 675a27a7e90b
+````
+
+**DONDE**
+
+- `-p 8001:8001`, especificamos el puerto `externo:interno`. El puerto externo, es desde donde se puede acceder
+  externamente al contenedor, mientras que, el puerto interno es el que usa nuestra aplicación al interior del
+  contenedor. En nuestro caso, definimos el mismo valor para ambos puertos.
+
+Listamos los contenedores para ver el que acabamos de levantar:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE          COMMAND               CREATED          STATUS          PORTS                    NAMES
+ca7eb1d41446   675a27a7e90b   "java -jar app.jar"   33 minutes ago   Up 33 minutes   0.0.0.0:8001->8001/tcp   recursing_murdock
+````
+
+Finalmente, si accedemos a algún endpoint de la aplicación dockerizada veremos que funciona correctamente:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users/3 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 3,
+  "name": "nophy",
+  "email": "nophy@gmail.com",
+  "password": "12345"
+}
+````
+
+## Comunicación entre aplicación en contenedor y aplicación local (pc host)
+
+En esta sección estableceremos comunicación entre nuestro `dk-ms-users` que ya está dockerizado con
+nuestro `dk-ms-courses` que aún no está dockerizado.
+
+Entonces, como nuestro microservicio `dk-ms-courses` se va a comunicar desde el interior del contenedor hacia afuera,
+necesitamos modificar la propiedad `url` del `@FeignClient` para que también use el `host.docker.internal` en reemplazo
+de `localhost`:
+
+````java
+
+@FeignClient(name = "dk-ms-courses", url = "host.docker.internal:8002", path = "/api/v1/courses")
+public interface ICourseFeignClient {
+    /* code */
+}
+````
+
+Ahora, en nuestro microservicio `dk-ms-courses` también tenemos un `@FeignClient` cuya url apunta a un `localhost:8001`,
+en este caso **no habría que modificar nada**, ya que el puerto externo que tendrá el contenedro será de `8001` y para
+poder acceder desde nuestra pc local al contenedor usamos el `localhost`:
+
+````java
+
+@FeignClient(name = "dk-ms-users", url = "localhost:8001", path = "/api/v1/users")
+public interface IUserFeignClient {
+    /* code */
+}
+````
+
+Listo, ahora volvemos a realizar todo el proceso que vimos en la sección anterior ya que hemos modificado el código
+fuente del `dk-ms-users`:
+
+````bash
+$ mvnw clean package -DskipTests
+
+$ docker build -t dk-ms-users .
+
+$ docker image ls
+REPOSITORY    TAG       IMAGE ID       CREATED             SIZE
+dk-ms-users   latest    2aae057fd9d4   4 minutes ago       387MB
+
+$ docker container run -p 8001:8001 dk-ms-users
+
+$ docker container ls -a
+CONTAINER ID   IMAGE          COMMAND               CREATED              STATUS                        PORTS                    NAMES
+9e3dffc8ad30   dk-ms-users    "java -jar app.jar"   About a minute ago   Up About a minute             0.0.0.0:8001->8001/tcp   charming_dubinsky
+````
+
+**DONDE**
+
+- `-t dk-ms-users`, con este tag le damos un nombre a la imagen que vamos a crear.
+
+Finalmente, una vez que ya tenemos nuestro contenedor del microservicio `dk-ms-users` corriendo, levantamos nuestro
+microservicio `dk-ms-courses` que esté en nuestra pc local, lo podemos hacer usando el IDE IntelliJ IDEA. Ahora que
+ambos están levantados ejecutamos el siguiente comando para ver si hay comunicación entre ambos:
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses/1 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "Kubernetes",
+  "courseUsers": [
+    {
+      "id": 1,
+      "userId": 2
+    }
+  ],
+  "users": [
+    {
+      "id": 2,
+      "name": "Martin",
+      "email": "martin@gmail.com",
+      "password": "12345"
+    }
+  ]
+}
+````
