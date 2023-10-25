@@ -984,3 +984,86 @@ $ curl -v http://localhost:8001/api/v1/users/3 | jq
   "password": "12345"
 }
 ````
+
+## Comunicación entre aplicación en contenedor y aplicación local (pc host)
+
+En esta sección estableceremos comunicación entre nuestro `dk-ms-users` que ya está dockerizado con
+nuestro `dk-ms-courses` que aún no está dockerizado.
+
+Entonces, como nuestro microservicio `dk-ms-courses` se va a comunicar desde el interior del contenedor hacia afuera,
+necesitamos modificar la propiedad `url` del `@FeignClient` para que también use el `host.docker.internal` en reemplazo
+de `localhost`:
+
+````java
+
+@FeignClient(name = "dk-ms-courses", url = "host.docker.internal:8002", path = "/api/v1/courses")
+public interface ICourseFeignClient {
+    /* code */
+}
+````
+
+Ahora, en nuestro microservicio `dk-ms-courses` también tenemos un `@FeignClient` cuya url apunta a un `localhost:8001`,
+en este caso **no habría que modificar nada**, ya que el puerto externo que tendrá el contenedro será de `8001` y para
+poder acceder desde nuestra pc local al contenedor usamos el `localhost`:
+
+````java
+
+@FeignClient(name = "dk-ms-users", url = "localhost:8001", path = "/api/v1/users")
+public interface IUserFeignClient {
+    /* code */
+}
+````
+
+Listo, ahora volvemos a realizar todo el proceso que vimos en la sección anterior ya que hemos modificado el código
+fuente del `dk-ms-users`:
+
+````bash
+$ mvnw clean package -DskipTests
+
+$ docker build -t dk-ms-users .
+
+$ docker image ls
+REPOSITORY    TAG       IMAGE ID       CREATED             SIZE
+dk-ms-users   latest    2aae057fd9d4   4 minutes ago       387MB
+
+$ docker container run -p 8001:8001 dk-ms-users
+
+$ docker container ls -a
+CONTAINER ID   IMAGE          COMMAND               CREATED              STATUS                        PORTS                    NAMES
+9e3dffc8ad30   dk-ms-users    "java -jar app.jar"   About a minute ago   Up About a minute             0.0.0.0:8001->8001/tcp   charming_dubinsky
+````
+
+**DONDE**
+
+- `-t dk-ms-users`, con este tag le damos un nombre a la imagen que vamos a crear.
+
+Finalmente, una vez que ya tenemos nuestro contenedor del microservicio `dk-ms-users` corriendo, levantamos nuestro
+microservicio `dk-ms-courses` que esté en nuestra pc local, lo podemos hacer usando el IDE IntelliJ IDEA. Ahora que
+ambos están levantados ejecutamos el siguiente comando para ver si hay comunicación entre ambos:
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses/1 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "Kubernetes",
+  "courseUsers": [
+    {
+      "id": 1,
+      "userId": 2
+    }
+  ],
+  "users": [
+    {
+      "id": 2,
+      "name": "Martin",
+      "email": "martin@gmail.com",
+      "password": "12345"
+    }
+  ]
+}
+````
