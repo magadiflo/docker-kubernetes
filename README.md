@@ -253,6 +253,18 @@ La imagen siguiente muestra el panorama general de lo que haremos en esta secci�
 
 ---
 
+## Arquitectura de Docker: Imágenes y Contenedores
+
+A continuación se muestra información gráfica del curso:
+
+![6.contenedores-vs-maquinas-virtuales](./assets/6.contenedores-vs-maquinas-virtuales.png)
+
+![7.imagenes-vs-contenedore](./assets/7.imagenes-vs-contenedores.png)
+
+![8.contenedores](./assets/8.contenedores.png)
+
+![9.imagenes-vs-contenedores](./assets/9.imagenes-vs-contenedores.png)
+
 ## Generando archivo .jar para dockerizar
 
 Veremos de manera general cómo generar el `jar` de nuestra aplicación de spring boot y cómo ejecutarlo sin el IDE.

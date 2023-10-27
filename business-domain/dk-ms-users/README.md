@@ -929,7 +929,8 @@ $ mvnw clean package -DskipTests
 >
 > Para evitar ese fallo, o para ser más exactos, para saltarnos el test, agregaremos la bandera `-DskipTests`.
 
-Una vez generado el .jar, ejecutamos el comando para crear nuestra imagen de docker:
+Una vez generado el `jar`, ejecutamos el comando para crear nuestra imagen de docker desde la misma raíz del
+microservicio `dk-ms-users`:
 
 ````bash
 $ docker build .
@@ -937,8 +938,9 @@ $ docker build .
 
 **DONDE**
 
-- `.` indica el path donde está ubicado el `Dockerfile`, en nuestro caso en la raíz de nuestro
-  microservicio `dk-ms-users` donde actualmente estamos posicionados.
+- `.` le indica a Docker que busque el `Dockerfile` y los recursos relacionados en el `directorio actual` en el que nos
+  encontramos, en nuestro caso en la raíz de nuestro microservicio `dk-ms-users` donde actualmente estamos posicionados
+  mediante la línea de comandos.
 
 Terminado la construcción de la imagen, podemos listarlo:
 
@@ -1066,4 +1068,418 @@ $ curl -v http://localhost:8002/api/v1/courses/1 | jq
     }
   ]
 }
+````
+
+## Optimizando Dockerfile
+
+Hasta ahora lo que estamos haciendo para generar la imagen de nuestro proyecto de spring boot es:
+
+1. Generar manualmente el archivo `.jar`.
+2. Utilizar ese empaquetado para generar la imagen.
+
+**Pero, ¡podemos automatizar ese proceso!**, para eso tenemos que realizar modificaciones en nuestro `Dockerfile`.
+Ahora, como estamos trabajando con un proyecto `maven multiple-module`, tenemos los `pom.xml` organizados en módulos y
+como ahora queremos usar un comando que se encargue de **generar el .jar** y luego **crear la imagen** necesitamos
+definir una ubicación desde dónde ejecutaremos el comando.
+
+La ubicación desde dónde ejecutaremos el comando será la raíz de todo nuestro proyecto **maven multiple-module**, es
+decir `/docker-kubernetes`, ya que desde allí podemos llegar a todos los subdirectorios `(sub-módulos)`. Listo, teniendo
+en cuenta ese detalle, reescribimos el `Dockerfile`:
+
+````dockerfile
+FROM openjdk:17-jdk-alpine
+WORKDIR /app/business-domain/dk-ms-users
+
+COPY ./pom.xml /app
+COPY ./business-domain/pom.xml /app/business-domain
+COPY ./business-domain/dk-ms-users ./
+
+RUN sed -i -e 's/\r$//' ./mvnw
+RUN ./mvnw clean package -DskipTests
+
+EXPOSE 8001
+CMD ["java", "-jar", "./target/dk-ms-users-0.0.1-SNAPSHOT.jar"]
+````
+
+Como observamos, nuestro `Dockerfile` ha variado en algunos casos a cómo lo teníamos inicialmente. A continuación
+explicaré los cambios realizados:
+
+- `WORKDIR /app/business-domain/dk-ms-users`, como queremos construir la imagen de nuestro microservicio `dk-ms-users`
+  necesitamos tener, en la imagen que vamos a crear, la misma estructura o niveles de directorios que tenemos en
+  nuestro proyecto local hasta el microservicio que queremos construir. La finalidad es, poder mantener la misma
+  estructura del proyecto `maven multiple-module`, eso nos permitirá copiar en cada nivel su correspondiente `pom.xml`.
+  La única diferencia que observaremos con la estructura de directorios a crear es que en el proyecto de la máquina
+  local, el proyecto raíz se llama `docker-kubernetes` mientras que el nombre del directorio raíz dentro de la imagen lo
+  llamaré `/app`. Lo importante es tener los mismos niveles de directorios.
+- Los `COPY` están haciendo lo que se mencionó en el punto anterior, copiar el `pom.xml` en el respectivo directorio de
+  destino. **¡Importante!** el origen de las copias que se hace, es a partir de la raíz del proyecto.
+- En el tercer `COPY` si hay diferencia, lo que se está haciendo es copiar todo el contenido del
+  directorio `./business-domain/dk-ms-users`, eso incluye obviamente también el `pom.xml`, en el `WORKDIR` que definimos
+  al inicio, es decir, todo el contenido se copiará en `/app/business-domain/dk-ms-users`.
+- `RUN sed -i -e 's/\r$//' ./mvnw`, este comando lo colocamos solo porque nos surgió el siguiente error cuando tratamos
+  de generar la imagen:
+
+  ````bash
+  $ docker build -t dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
+  [+] Building 4.5s (11/11) FINISHED                                                                                                                                                        docker:default  => [internal] load build definition from Dockerfile                                                                                                                                                0.1s  => => transferring dockerfile: 444B                                                                                                                                                                0.0s  => [internal] load .dockerignore                                                                                                                                                                   0.2s  => => transferring context: 2B                                                                                                                                                                     0.0s  => [internal] load metadata for docker.io/library/openjdk:17-jdk-alpine                                                                                                                            2.9s  => [auth] library/openjdk:pull token for registry-1.docker.io                                                                                                                                      0.0s  => CACHED [1/6] FROM docker.io/library/openjdk:17-jdk-alpine@sha256:4b6abae565492dbe9e7a894137c966a7485154238902f2f25e9dbd9784383d81                                                               0.0s  => [internal] load build context                                                                                                                                                                   0.2s  => => transferring context: 144.22kB                                                                                                                                                               0.1s  => [2/6] WORKDIR /app/business-domain/dk-ms-users                                                                                                                                                  0.2s  => [3/6] COPY ./pom.xml /app                                                                                                                                                                       0.1s  => [4/6] COPY ./business-domain/pom.xml /app/business-domain                                                                                                                                       0.2s  => [5/6] COPY ./business-domain/dk-ms-users ./                                                                                                                                                     0.2s  => ERROR [6/6] RUN ./mvnw clean package -DskipTests                                                                                                                                                0.6s ------
+   > [6/6] RUN ./mvnw clean package -DskipTests:
+  0.558 /bin/sh: ./mvnw: not found
+  ------
+  Dockerfile:10
+  --------------------
+    10 | >>> RUN ./mvnw clean package -DskipTests
+    11 |
+    12 |     EXPOSE 8001
+  --------------------
+  ERROR: failed to solve: process "/bin/sh -c ./mvnw clean package -DskipTests" did not complete successfully: exit code: 127
+  ````
+
+  > Según `ChatGPT`, la instrucción `RUN sed -i -e 's/\r$//' ./mvnw`, es un comando de Linux que utiliza sed, el editor
+  > de flujo, para eliminar los caracteres de retorno de carro (\r) al final de cada línea en el archivo mvnw. Los
+  > caracteres de retorno de carro son caracteres de control que se utilizan en sistemas operativos Windows y en algunos
+  > otros sistemas para indicar el final de una línea de texto en un archivo. En sistemas Unix y Linux, se utiliza el
+  > carácter de nueva línea (\n) para este propósito.
+  >
+  > - `sed`: Es el comando para invocar el editor de flujo en Linux.
+  > - `-i`: Es una opción que le indica a sed que realice cambios en el archivo en su lugar, es decir, modificará el
+      archivo mvnw directamente.
+  > - `-e`: Indica que se proporcionará una expresión de script a sed.
+  > - `'s/\r$//'`: Es la expresión de script que busca y reemplaza el retorno de carro (\r) al final de cada línea del
+      > archivo por una cadena vacía, es decir, lo elimina.
+  > - `./mvnw`: Es el archivo en el que se realizará la modificación. En este caso, se asume que el archivo mvnw está en
+      el directorio actual (./).
+  >
+  > Este comando es útil cuando los archivos se han creado o editado en un sistema Windows o en un entorno que
+  utiliza retornos de carro, y se deben utilizar en un entorno Linux o Unix donde se espera el carácter de nueva
+  línea para indicar el final de una línea. Al eliminar los caracteres de retorno de carro, se asegura que el
+  archivo sea compatible con el sistema en el que se está utilizando.
+
+  **CONCLUSIÓN**
+  Como estoy en windows, el fichero `mvnw` no se ejecuta bien en el linux de docker, ya que ahora, como reinstalé
+  Docker, utilicé en la instalación la opción `WSL 2 (Windows Subsystem for Linux)`.
+
+
+- `RUN ./mvnw clean package -DskipTests`, RUN es para cuando se construye las imágenes, mientras que CMD o ENTRYPOINT es
+  para cuando se levanta contenedores. En ese sentido, cuando se construya la imagen y llegue a esa instrucción lo que
+  hará será ejecutar el archivo `./mvnw` que está ubicado en `/app/business-domain/dk-ms-users`, es decir, de esto
+  `./mvnw`, el `./` corresponden al `WORKDIR` definido al inicio.
+- `CMD ["java", "-jar", "./target/dk-ms-users-0.0.1-SNAPSHOT.jar"]`, como se mencionó en el punto anterior, este comando
+  es usado cuando se levanta el contenedor.
+
+  > Del punto anterior, es muy importante colocar el nombre de archivo `jar` generado en la compilación.
+  > Por defecto el nombre del jar para ese microservicio es `dk-ms-users-0.0.1-SNAPSHOT.jar`. Ahora, notar que
+  > estamos iniciando con `./target/...`, eso significa que cuando se compiló el `jar` dentro del `WORKDIR`, se generó
+  > el directorio `/target` y dentro de él el `jar`.
+
+Ahora, llega el momento de ejecutar el comando del que tanto hablaba al inicio. Como mencioné, debemos posicionarnos en
+la raíz del proyecto `/docker-kubernetes`, ya que desde ese punto, se empezará a realizar los `COPY` definidos en
+el `Dockerfile` y todo lo demás.
+
+````bash
+$ docker build -t dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
+````
+
+**DONDE**
+
+- `.`, el primer punto (.) sigue **representando el contexto actual donde Docker buscará otros recursos necesarios para
+  la construcción de la imagen.** Es decir, es el directorio actual donde estamos posicionados.
+- `-f .\business-domain\dk-ms-users\Dockerfile`, indica la ruta y el nombre del archivo Dockerfile a utilizar.
+
+Entonces, en este caso, estás siendo explícito al decirle a Docker que utilice el `Dockerfile` ubicado en el
+subdirectorio `.\business-domain\dk-ms-users`. Esto difiere del comando `docker build .` que **busca automáticamente un
+Dockerfile en el directorio actual sin la necesidad de especificar su nombre y ubicación.**
+
+Listamos las imágenes para ver el que acabamos de crear, ¡Wow! nos damos con la sorpresa de que un tamaño muy grande
+502MB. En el siguiente capítulo veremos cómo optimizar aún más:
+
+````bash
+$ docker image ls
+REPOSITORY    TAG       IMAGE ID       CREATED          SIZE
+dk-ms-users   latest    99a21f6ec731   59 seconds ago   502MB
+````
+
+Procedemos a ejecutar un contenedor a partir de la imagen anterior:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE          COMMAND                  CREATED          STATUS          PORTS                    NAMES
+b501a8e94b43   dk-ms-users    "java -jar ./target/…"   50 seconds ago   Up 49 seconds   0.0.0.0:8001->8001/tcp   modest_lumiere
+````
+
+Verificamos funcionamiento de nuestra aplicación contenerizada:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[
+  {
+    "id": 2,
+    "name": "Martin",
+    "email": "martin@gmail.com",
+    "password": "12345"
+  },
+  {...}
+]
+````
+
+## Optimizando un Dockerfile parte 2 - Añadiendo nuevas capas
+
+Si bien es cierto, las modificaciones que hicimos al `Dockerfile` en la sección anterior nos evita estar generando
+manualmente el `jar` y luego a partir de eso crear la imagen, pero aún hay un pequeño problema, **¿cuál?**:
+
+Cuando realicemos una modificación al código fuente, tenemos que volver a ejecutar el comando para generar nuevamente
+la imagen, hasta ahí todo correcto, el problema ocurre cuando la instrucción llega en los puntos siguientes:
+
+````dockerfile
+# Other instructions
+COPY ./business-domain/dk-ms-users ./
+# Other instruction
+RUN ./mvnw clean package -DskipTests
+# Other instructions
+````
+
+Como hemos modificado el código fuente, y ese código fuente está en el directorio `./business-domain/dk-ms-users`,
+`docker` sabe que algún archivo dentro de esa dirección ha cambiado, pero no sabe cuál, entonces el `COPY`
+vuelve a copiar todo el contenido de ese directorio hacia el `WORKDIR` que definimos al inicio y a partir de ahí hacia
+abajo, empieza a realizar todo **como si fuera la primera vez**, es por eso que, cuando llega al `RUN`, esa instrucción
+hace que **nuevamente se empiecen a descargar todas las dependencias**, ya que dentro de los archivos copiados está
+el `pom.xml` del propio proyecto. Eso no debería ocurrir, porque **"solo modificamos el código fuente"**, por lo que
+las dependencias ya lo teníamos descargadas. **¿Cómo solucionarlo?**
+
+Para eso, debemos realizar las siguientes modificaciones en el `Dockerfile` que consistirán básicamente en:
+
+1. Descargar todas las dependencias
+2. Copiar el código fuente a la imagen
+3. Generar el `.jar` a partir de los dos pasos anteriores
+
+````dockerfile
+FROM openjdk:17-jdk-alpine
+WORKDIR /app/business-domain/dk-ms-users
+
+COPY ./pom.xml /app
+COPY ./business-domain/pom.xml /app/business-domain
+COPY ./business-domain/dk-ms-users/pom.xml ./
+COPY ./business-domain/dk-ms-users/mvnw ./
+COPY ./business-domain/dk-ms-users/.mvn ./.mvn
+
+RUN sed -i -e 's/\r$//' ./mvnw
+RUN ./mvnw dependency:go-offline
+
+COPY ./business-domain/dk-ms-users/src ./src
+RUN ./mvnw clean package -DskipTests
+
+EXPOSE 8001
+CMD ["java", "-jar", "./target/dk-ms-users-0.0.1-SNAPSHOT.jar"]
+````
+
+**DONDE**
+
+- Los tres primeros `COPY` copian el `pom.xml` del código fuente local hacia su correspondiente nivel en la estructura
+  de directorios definida en el `WORKDIR`.
+- El cuarto `COPY`, copia el archivo `mvnw` dentro del `WORKDIR` de la imagen `(/app/business-domain/dk-ms-users)`.
+- El quinto `COPY`, copia el contenido del directorio `.mvn` dentro de un directorio con el mismo nombre `.mvn` que se
+  creará dentro del `WORKDIR` de la imagen.
+- `RUN sed -i -e 's/\r$//' ./mvnw`, este comando lo vimos en la sección anterior, es utilizado antes de ejecutar el
+  archivo `.mvnw`, para que haga la conversión de dicho archivo y no haya errores cuando se ejecute con el RUN.
+- `RUN ./mvnw dependency:go-offline`, con este comando iniciamos la descarga de las dependencias de maven.
+- `COPY ./business-domain/dk-ms-users/src ./src`, copiamos solo el código fuente que está ubicado en el
+  directorio `.../src`. Lo copiamos dentro de un directorio `/src` pero que estará dentro del `WORKDIR`.
+- `RUN ./mvnw clean package -DskipTests`, iniciamos la creación del `jar`, pero esta vez, ya no volverá a descargar las
+  dependencias, ya las tenemos descargadas en las capas anteriores.
+
+Listo, con esas modificaciones realizadas a nuestro `Dockerfile`, cada vez que cambiemos algo en el código fuente,
+las dependencias ya no volverán a descargarse, porque lo que modificamos fue el código fuente y no las dependencias, por
+lo tanto, **la velocidad de creación de la imagen será más rápido.**
+
+**NOTA 1**
+> En el quinto `COPY` estamos copiando prácticamente el directorio `.mvn` y su contenido a la imagen de docker, pero,
+> **¿qué es ese directorio?**
+>
+> El directorio `.mvn` en una aplicación de Spring Boot es un directorio especial que se utiliza para alojar archivos
+> relacionados con la construcción y configuración del proyecto. En particular, el directorio `.mvn` **se utiliza para
+> personalizar la construcción del proyecto utilizando el mecanismo de "wrapper" de Maven.**
+>
+> El `Maven Wrapper (o simplemente "wrapper")` **es una forma de garantizar que un proyecto se construya con una versión
+> específica de Maven**, independientemente de la versión de Maven instalada en el sistema del desarrollador. Esto puede
+> ser útil para garantizar que todos los miembros del equipo utilicen la misma versión de Maven y para simplificar la
+> configuración del entorno de construcción.
+>
+> Dentro del directorio `.mvn`, normalmente encontrarás dos archivos clave:
+>
+> `wrapper/ (subdirectorio):` Este subdirectorio contiene los archivos necesarios para el Maven Wrapper. Los archivos
+> más importantes son:
+> - `maven-wrapper.properties` especifica la versión de Maven que se utilizará y cómo se descargará si no está presente.
+> - `maven-wrapper.jar` es una biblioteca que permite ejecutar Maven sin tenerlo instalado localmente.
+
+**NOTA 2**
+> `RUN ./mvnw dependency:go-offline`:<br>
+> - `dependencia:go-offline`, objetivo (goal) que resuelve todas las dependencias del proyecto, incluyendo plugins e
+    informes y sus dependencias. Después de ejecutar este objetivo, podemos trabajar con seguridad en modo offline.
+> - El objetivo `dependency:go-offline` descarga todas las dependencias del proyecto y las almacena en el repositorio
+    local de Maven en la imagen de Docker.
+> - Esto es útil para garantizar que todas las dependencias estén disponibles sin necesidad de una conexión a Internet
+    durante la construcción de la imagen de Docker.
+> - Esta instrucción no construye el proyecto ni empaqueta la aplicación Spring Boot.
+>
+> **Conclusión:** utilizamos esa instrucción, ya que solo deseamos descargar las dependencias y preparar el entorno de
+> Maven para una construcción posterior.
+
+Probemos los cambios realizados. Ejecutemos por primera vez la imagen y veamos cuánto tiempo se demora en crearla:
+
+````bash
+$ docker build -t dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
+[+] Building 260.2s (17/17) FINISHED
+````
+
+Bien, se demoró `260.2s = 4' 20"` aproximadamente. Ahora veamos la imagen que nos generó:
+
+````bash
+$ docker image ls
+REPOSITORY    TAG       IMAGE ID       CREATED              SIZE
+dk-ms-users   latest    27654cbed002   About a minute ago   579MB
+````
+
+**Realizamos un cambio en el código fuente**, y volvemos a **generar la imagen por segunda vez:**
+
+````bash
+$ docker build -t dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
+[+] Building 19.8s (17/17) FINISHED
+````
+
+Bien, esta vez se demoró `19.8"` aproximadamente, eso significa que nuestra configuración está funcionando. Ahora,
+generamos un contenedor a partir de la imagen anterior para comprobar que todo está funcionando como antes:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE         COMMAND                  CREATED          STATUS         PORTS                    NAMES
+b3ff48ab28e6   dk-ms-users   "java -jar ./target/…"   15 seconds ago   Up 13 seconds  0.0.0.0:8001->8001/tcp   hungry_shockley
+````
+
+Comprobamos que nuestra aplicación alojada dentro del contenedor, se está ejecutando correctamente:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[
+  {
+    "id": 2,
+    "name": "Martin",
+    "email": "martin@gmail.com",
+    "password": "12345"
+  },
+  {...}
+]
+````
+
+## Optimizando Dockerfile con compilaciones de varias etapas o multi-stage builds
+
+En la sección anterior, vimos que la creación de la imagen fue más rápido, pero aun el tamaño de la imagen generada es
+muy grande, esto ocurre porque la imagen generada contiene el código fuente y otros archivos que solo lo requerimos para
+poder realizar la compilación, etc. Entonces, para reducir el peso de la imagen, necesitamos generar una imagen que
+contenga solo el `jar` de nuestra aplicación, es decir el resultado final. Para eso podemos usar la construcción
+`Multi-stage`.
+
+### [Multi-stage builds](https://docs.docker.com/build/building/multi-stage/)
+
+Las compilaciones multietapa son útiles para cualquiera que haya luchado por optimizar los archivos Docker sin que dejen
+de ser fáciles de leer y mantener.
+
+### Use multi-stage builds
+
+Con las compilaciones multietapa, **utilizas múltiples instrucciones FROM en tu Dockerfile**. Cada instrucción FROM
+puede utilizar una base diferente, y cada una de ellas inicia una nueva etapa de la compilación. **Puede copiar
+artefactos de forma selectiva de una etapa a otra, dejando atrás todo lo que no desee en la imagen final.**
+
+A continuación se muestra la modificación realizada al `Dockerfile` que ahora es `Multi-stage`:
+
+````dockerfile
+FROM openjdk:17-jdk-alpine AS builder
+WORKDIR /app/business-domain/dk-ms-users
+COPY ./pom.xml /app
+COPY ./business-domain/pom.xml /app/business-domain
+COPY ./business-domain/dk-ms-users/pom.xml ./
+COPY ./business-domain/dk-ms-users/mvnw ./
+COPY ./business-domain/dk-ms-users/.mvn ./.mvn
+RUN sed -i -e 's/\r$//' ./mvnw
+RUN ./mvnw dependency:go-offline
+COPY ./business-domain/dk-ms-users/src ./src
+RUN ./mvnw clean package -DskipTests
+
+FROM openjdk:17-jdk-alpine
+WORKDIR /app
+COPY --from=builder /app/business-domain/dk-ms-users/target/*.jar ./app.jar
+EXPOSE 8001
+CMD ["java", "-jar", "app.jar"]
+````
+
+**DONDE**
+
+- `FROM openjdk:17-jdk-alpine AS builder`, puedes nombrar tus etapas, añadiendo un `AS <NAME>` a la instrucción `FROM`.
+  En mi caso, nombré a esta primera etapa como `builder`.
+- `FROM openjdk:17-jdk-alpine`, esta segunda etapa no le puse un nombre por defecto.
+- Cada `FROM` inicia una nueva etapa, por lo que la configuración anterior tiene 2 etapas.
+- `COPY --from=builder /app/business-domain/dk-ms-users/target/*.jar ./app.jar`, en la segunda etapa, esta instrucción
+  copia de la etapa `builder`, de su directorio `/app/business-domain/dk-ms-users/target/` el archivo generado que
+  termina en `*.jar`, lo copia hacia el `WORKDIR /app` de esta segunda etapa.
+- `CMD ["java", "-jar", "app.jar"]`, se ejecuta cuando se crean contenedores y se ejecuta en la raíz del `WORKDIR /app`.
+
+Dejamos limpio docker y ejecutamos el comando para la construcción de la imagen. Vemos que al construir la imagen por
+primera vez con la nueva configuración, el tiempo tomado fue de `260.2s == 4' 20"`:
+
+````bash
+$ docker build -t dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
+[+] Building 260.2s (18/18) FINISHED
+````
+
+Ahora, modificamos algo en el código fuente y volvemos a crear la imagen. En esta segunda vez que se construyó la imagen
+el tiempo tomado para la construcción fue de `21.8s`:
+
+````bash
+$ docker build -t dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
+[+] Building 21.8s (19/19) FINISHED
+````
+
+Ahora, revisemos cuál es el tamaño de la imagen generada `387MB`:
+
+````bash
+$ docker image ls
+REPOSITORY    TAG       IMAGE ID       CREATED          SIZE
+dk-ms-users   latest    d66046b6ba18   54 seconds ago   387MB
+````
+
+Creamos el contenedor a partir de la imagen anterior:
+
+````bash
+$  docker container ls -a
+CONTAINER ID   IMAGE         COMMAND               CREATED          STATUS          PORTS                    NAMES
+82eb5fa89ca9   dk-ms-users   "java -jar app.jar"   29 seconds ago   Up 28 seconds   0.0.0.0:8001->8001/tcp   flamboyant_maxwell
+````
+
+Finalmente, verificamos que nuestra aplicación de Spring Boot dentro del contenedor está funcionando correctamente:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+
+<
+[
+  {
+    "id": 2,
+    "name": "Martin",
+    "email": "martin@gmail.com",
+    "password": "12345"
+  },
+  {...}
+]
 ````
