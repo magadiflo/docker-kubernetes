@@ -4,6 +4,8 @@
 
 ## Contenedores
 
+---
+
 - **Crear un contenedor (default attach)**
 
 Si luego de que está ejecutándose el contenedor, presionamos `Ctrl + C`, detendremos el contenedor.
@@ -80,7 +82,7 @@ $ docker container start 1493e4efbe4a
 Si luego de ejecutarse el contenedor presionamos `Ctrl + C`, detendremos el contenedor.
 
 ````bash
-$ docker container start ca57c372b489 -a
+$ docker container start -a ca57c372b489
 
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
@@ -123,7 +125,7 @@ simplemente presionamos `Ctrl + C`, **eso hace que retomemos el control de la l�
 ejecutándose por debajo, no lo detiene.**
 
 ````bash
-$ docker container logs 56cc2ac14229 -f
+$ docker container logs -f 56cc2ac14229
 
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
@@ -144,4 +146,89 @@ $ docker container logs 56cc2ac14229 -f
         u1_0.password
     from
         users u1_0
+````
+
+- **Eliminar un contenedor que está detenido**
+
+````bash
+$ docker container rm b6d46323c2d0
+````
+
+- **Forzar la eliminación un contenedor que está siendo ejecutado**
+
+````bash
+$ docker container rm -f ca57c372b489
+````
+
+- **Elimina todos los contenedores que están detenidos (Exited), los que están levantados (Up) no los toca**
+
+````bash
+$ docker container prune
+WARNING! This will remove all stopped containers.
+Are you sure you want to continue? [y/N] y
+Deleted Containers:
+56cc2ac14229caeee5f41bd46d20d5087db15321ddd567984bfdfae9d01ea89d
+6bb53e81e181d4660d9a23eeca752668d007d95d4b62e809149ecc2f7bb4bb66
+
+Total reclaimed space: 0B
+````
+
+---
+
+# Imágenes
+
+---
+
+- **Listar las imágenes**
+
+````bash
+$ docker image ls
+REPOSITORY    TAG       IMAGE ID       CREATED       SIZE
+dk-ms-users   latest    db7d7d6737b1   6 hours ago   387MB
+dk-ms-users   test      db7d7d6737b1   6 hours ago   387MB
+````
+
+- **Eliminar una imagen con tag por defecto**
+
+La instrucción siguiente eliminó la imagen `dk-ms-users`. Como no especificamos la etiqueta, por defecto elimina el
+`(TAG) latest` que es el tag por defecto. Si la imagen tiene contenedores ejecutándose mostrará mensajes de error y no
+podrá eliminarse.
+
+````bash
+$ docker image rm dk-ms-users
+Untagged: dk-ms-users:latest
+Deleted: sha256:db7d7d6737b1cd72856f5d250b0b4da95e9a7d98e00b145c1aacecc8755b1bf0
+````
+
+- **Eliminar una imagen especificando su tag**
+
+La instrucción siguiente eliminó la imagen `dk-ms-users` con `TAG test`. Si la imagen tiene contenedores ejecutándose
+mostrará mensajes de error y no podrá eliminarse.
+
+````bash
+$ docker image rm dk-ms-users:test
+Untagged: dk-ms-users:test
+````
+
+- **Eliminar imágenes no utilizadas `<none>:<none>`**
+
+````bash
+$ docker image ls
+REPOSITORY    TAG           IMAGE ID       CREATED         SIZE
+<none>        <none>        3ad3b56a2b31   3 minutes ago   387MB
+dk-ms-users   development   db7d7d6737b1   7 hours ago     387MB
+dk-ms-users   latest        db7d7d6737b1   7 hours ago     387MB
+
+$ docker image prune
+WARNING! This will remove all dangling images.
+Are you sure you want to continue? [y/N] y
+Deleted Images:
+deleted: sha256:3ad3b56a2b315ce667740a41fa92a65d1902b30269a2484b22b64a1ddb31b98e
+
+Total reclaimed space: 0B
+
+$ docker image ls
+REPOSITORY    TAG           IMAGE ID       CREATED       SIZE
+dk-ms-users   development   db7d7d6737b1   7 hours ago   387MB
+dk-ms-users   latest        db7d7d6737b1   7 hours ago   387MB
 ````
