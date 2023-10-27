@@ -1225,3 +1225,157 @@ $ curl -v http://localhost:8001/api/v1/users | jq
   {...}
 ]
 ````
+
+## Optimizando un Dockerfile parte 2 - Añadiendo nuevas capas
+
+Si bien es cierto, las modificaciones que hicimos al `Dockerfile` en la sección anterior nos evita estar generando
+manualmente el `jar` y luego a partir de eso crear la imagen, pero aún hay un pequeño problema, **¿cuál?**:
+
+Cuando realicemos una modificación al código fuente, tenemos que volver a ejecutar el comando para generar nuevamente
+la imagen, hasta ahí todo correcto, el problema ocurre cuando la instrucción llega en los puntos siguientes:
+
+````dockerfile
+# Other instructions
+COPY ./business-domain/dk-ms-users ./
+# Other instruction
+RUN ./mvnw clean package -DskipTests
+# Other instructions
+````
+
+Como hemos modificado el código fuente, y ese código fuente está en el directorio `./business-domain/dk-ms-users`,
+`docker` sabe que algún archivo dentro de esa dirección ha cambiado, pero no sabe cuál, entonces el `COPY`
+vuelve a copiar todo el contenido de ese directorio hacia el `WORKDIR` que definimos al inicio y a partir de ahí hacia
+abajo, empieza a realizar todo **como si fuera la primera vez**, es por eso que, cuando llega al `RUN`, esa instrucción
+hace que **nuevamente se empiecen a descargar todas las dependencias**, ya que dentro de los archivos copiados está
+el `pom.xml` del propio proyecto. Eso no debería ocurrir, porque **"solo modificamos el código fuente"**, por lo que
+las dependencias ya lo teníamos descargadas. **¿Cómo solucionarlo?**
+
+Para eso, debemos realizar las siguientes modificaciones en el `Dockerfile` que consistirán básicamente en:
+
+1. Descargar todas las dependencias
+2. Copiar el código fuente a la imagen
+3. Generar el `.jar` a partir de los dos pasos anteriores
+
+````dockerfile
+FROM openjdk:17-jdk-alpine
+WORKDIR /app/business-domain/dk-ms-users
+
+COPY ./pom.xml /app
+COPY ./business-domain/pom.xml /app/business-domain
+COPY ./business-domain/dk-ms-users/pom.xml ./
+COPY ./business-domain/dk-ms-users/mvnw ./
+COPY ./business-domain/dk-ms-users/.mvn ./.mvn
+
+RUN sed -i -e 's/\r$//' ./mvnw
+RUN ./mvnw dependency:go-offline
+
+COPY ./business-domain/dk-ms-users/src ./src
+RUN ./mvnw clean package -DskipTests
+
+EXPOSE 8001
+CMD ["java", "-jar", "./target/dk-ms-users-0.0.1-SNAPSHOT.jar"]
+````
+
+**DONDE**
+
+- Los tres primeros `COPY` copian el `pom.xml` del código fuente local hacia su correspondiente nivel en la estructura
+  de directorios definida en el `WORKDIR`.
+- El cuarto `COPY`, copia el archivo `mvnw` dentro del `WORKDIR` de la imagen `(/app/business-domain/dk-ms-users)`.
+- El quinto `COPY`, copia el contenido del directorio `.mvn` dentro de un directorio con el mismo nombre `.mvn` que se
+  creará dentro del `WORKDIR` de la imagen.
+- `RUN sed -i -e 's/\r$//' ./mvnw`, este comando lo vimos en la sección anterior, es utilizado antes de ejecutar el
+  archivo `.mvnw`, para que haga la conversión de dicho archivo y no haya errores cuando se ejecute con el RUN.
+- `RUN ./mvnw dependency:go-offline`, con este comando iniciamos la descarga de las dependencias de maven.
+- `COPY ./business-domain/dk-ms-users/src ./src`, copiamos solo el código fuente que está ubicado en el
+  directorio `.../src`. Lo copiamos dentro de un directorio `/src` pero que estará dentro del `WORKDIR`.
+- `RUN ./mvnw clean package -DskipTests`, iniciamos la creación del `jar`, pero esta vez, ya no volverá a descargar las
+  dependencias, ya las tenemos descargadas en las capas anteriores.
+
+Listo, con esas modificaciones realizadas a nuestro `Dockerfile`, cada vez que cambiemos algo en el código fuente,
+las dependencias ya no volverán a descargarse, porque lo que modificamos fue el código fuente y no las dependencias, por
+lo tanto, **la velocidad de creación de la imagen será más rápido.**
+
+**NOTA 1**
+> En el quinto `COPY` estamos copiando prácticamente el directorio `.mvn` y su contenido a la imagen de docker, pero,
+> **¿qué es ese directorio?**
+>
+> El directorio `.mvn` en una aplicación de Spring Boot es un directorio especial que se utiliza para alojar archivos
+> relacionados con la construcción y configuración del proyecto. En particular, el directorio `.mvn` **se utiliza para
+> personalizar la construcción del proyecto utilizando el mecanismo de "wrapper" de Maven.**
+>
+> El `Maven Wrapper (o simplemente "wrapper")` **es una forma de garantizar que un proyecto se construya con una versión
+> específica de Maven**, independientemente de la versión de Maven instalada en el sistema del desarrollador. Esto puede
+> ser útil para garantizar que todos los miembros del equipo utilicen la misma versión de Maven y para simplificar la
+> configuración del entorno de construcción.
+>
+> Dentro del directorio `.mvn`, normalmente encontrarás dos archivos clave:
+>
+> `wrapper/ (subdirectorio):` Este subdirectorio contiene los archivos necesarios para el Maven Wrapper. Los archivos
+> más importantes son:
+> - `maven-wrapper.properties` especifica la versión de Maven que se utilizará y cómo se descargará si no está presente.
+> - `maven-wrapper.jar` es una biblioteca que permite ejecutar Maven sin tenerlo instalado localmente.
+
+**NOTA 2**
+> `RUN ./mvnw dependency:go-offline`:<br>
+> - `dependencia:go-offline`, objetivo (goal) que resuelve todas las dependencias del proyecto, incluyendo plugins e
+    informes y sus dependencias. Después de ejecutar este objetivo, podemos trabajar con seguridad en modo offline.
+> - El objetivo `dependency:go-offline` descarga todas las dependencias del proyecto y las almacena en el repositorio
+    local de Maven en la imagen de Docker.
+> - Esto es útil para garantizar que todas las dependencias estén disponibles sin necesidad de una conexión a Internet
+    durante la construcción de la imagen de Docker.
+> - Esta instrucción no construye el proyecto ni empaqueta la aplicación Spring Boot.
+>
+> **Conclusión:** utilizamos esa instrucción, ya que solo deseamos descargar las dependencias y preparar el entorno de
+> Maven para una construcción posterior.
+
+Probemos los cambios realizados. Ejecutemos por primera vez la imagen y veamos cuánto tiempo se demora en crearla:
+
+````bash
+$ docker build -t dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
+[+] Building 260.2s (17/17) FINISHED
+````
+
+Bien, se demoró `260.2s = 4' 20"` aproximadamente. Ahora veamos la imagen que nos generó:
+
+````bash
+$ docker image ls
+REPOSITORY    TAG       IMAGE ID       CREATED              SIZE
+dk-ms-users   latest    27654cbed002   About a minute ago   579MB
+````
+
+**Realizamos un cambio en el código fuente**, y volvemos a **generar la imagen por segunda vez:**
+
+````bash
+$ docker build -t dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
+[+] Building 19.8s (17/17) FINISHED
+````
+
+Bien, esta vez se demoró `19.8"` aproximadamente, eso significa que nuestra configuración está funcionando. Ahora,
+generamos un contenedor a partir de la imagen anterior para comprobar que todo está funcionando como antes:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE         COMMAND                  CREATED          STATUS         PORTS                    NAMES
+b3ff48ab28e6   dk-ms-users   "java -jar ./target/…"   15 seconds ago   Up 13 seconds  0.0.0.0:8001->8001/tcp   hungry_shockley
+````
+
+Comprobamos que nuestra aplicación alojada dentro del contenedor, se está ejecutando correctamente:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[
+  {
+    "id": 2,
+    "name": "Martin",
+    "email": "martin@gmail.com",
+    "password": "12345"
+  },
+  {...}
+]
+````
+
