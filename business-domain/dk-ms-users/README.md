@@ -1379,3 +1379,107 @@ $ curl -v http://localhost:8001/api/v1/users | jq
 ]
 ````
 
+## Optimizando Dockerfile con compilaciones de varias etapas o multi-stage builds
+
+En la sección anterior, vimos que la creación de la imagen fue más rápido, pero aun el tamaño de la imagen generada es
+muy grande, esto ocurre porque la imagen generada contiene el código fuente y otros archivos que solo lo requerimos para
+poder realizar la compilación, etc. Entonces, para reducir el peso de la imagen, necesitamos generar una imagen que
+contenga solo el `jar` de nuestra aplicación, es decir el resultado final. Para eso podemos usar la construcción
+`Multi-stage`.
+
+### [Multi-stage builds](https://docs.docker.com/build/building/multi-stage/)
+
+Las compilaciones multietapa son útiles para cualquiera que haya luchado por optimizar los archivos Docker sin que dejen
+de ser fáciles de leer y mantener.
+
+### Use multi-stage builds
+
+Con las compilaciones multietapa, **utilizas múltiples instrucciones FROM en tu Dockerfile**. Cada instrucción FROM
+puede utilizar una base diferente, y cada una de ellas inicia una nueva etapa de la compilación. **Puede copiar
+artefactos de forma selectiva de una etapa a otra, dejando atrás todo lo que no desee en la imagen final.**
+
+A continuación se muestra la modificación realizada al `Dockerfile` que ahora es `Multi-stage`:
+
+````dockerfile
+FROM openjdk:17-jdk-alpine AS builder
+WORKDIR /app/business-domain/dk-ms-users
+COPY ./pom.xml /app
+COPY ./business-domain/pom.xml /app/business-domain
+COPY ./business-domain/dk-ms-users/pom.xml ./
+COPY ./business-domain/dk-ms-users/mvnw ./
+COPY ./business-domain/dk-ms-users/.mvn ./.mvn
+RUN sed -i -e 's/\r$//' ./mvnw
+RUN ./mvnw dependency:go-offline
+COPY ./business-domain/dk-ms-users/src ./src
+RUN ./mvnw clean package -DskipTests
+
+FROM openjdk:17-jdk-alpine
+WORKDIR /app
+COPY --from=builder /app/business-domain/dk-ms-users/target/*.jar ./app.jar
+EXPOSE 8001
+CMD ["java", "-jar", "app.jar"]
+````
+
+**DONDE**
+
+- `FROM openjdk:17-jdk-alpine AS builder`, puedes nombrar tus etapas, añadiendo un `AS <NAME>` a la instrucción `FROM`.
+  En mi caso, nombré a esta primera etapa como `builder`.
+- `FROM openjdk:17-jdk-alpine`, esta segunda etapa no le puse un nombre por defecto.
+- Cada `FROM` inicia una nueva etapa, por lo que la configuración anterior tiene 2 etapas.
+- `COPY --from=builder /app/business-domain/dk-ms-users/target/*.jar ./app.jar`, en la segunda etapa, esta instrucción
+  copia de la etapa `builder`, de su directorio `/app/business-domain/dk-ms-users/target/` el archivo generado que
+  termina en `*.jar`, lo copia hacia el `WORKDIR /app` de esta segunda etapa.
+- `CMD ["java", "-jar", "app.jar"]`, se ejecuta cuando se crean contenedores y se ejecuta en la raíz del `WORKDIR /app`.
+
+Dejamos limpio docker y ejecutamos el comando para la construcción de la imagen. Vemos que al construir la imagen por
+primera vez con la nueva configuración, el tiempo tomado fue de `260.2s == 4' 20"`:
+
+````bash
+$ docker build -t dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
+[+] Building 260.2s (18/18) FINISHED
+````
+
+Ahora, modificamos algo en el código fuente y volvemos a crear la imagen. En esta segunda vez que se construyó la imagen
+el tiempo tomado para la construcción fue de `21.8s`:
+
+````bash
+$ docker build -t dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
+[+] Building 21.8s (19/19) FINISHED
+````
+
+Ahora, revisemos cuál es el tamaño de la imagen generada `387MB`:
+
+````bash
+$ docker image ls
+REPOSITORY    TAG       IMAGE ID       CREATED          SIZE
+dk-ms-users   latest    d66046b6ba18   54 seconds ago   387MB
+````
+
+Creamos el contenedor a partir de la imagen anterior:
+
+````bash
+$  docker container ls -a
+CONTAINER ID   IMAGE         COMMAND               CREATED          STATUS          PORTS                    NAMES
+82eb5fa89ca9   dk-ms-users   "java -jar app.jar"   29 seconds ago   Up 28 seconds   0.0.0.0:8001->8001/tcp   flamboyant_maxwell
+````
+
+Finalmente, verificamos que nuestra aplicación de Spring Boot dentro del contenedor está funcionando correctamente:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+
+<
+[
+  {
+    "id": 2,
+    "name": "Martin",
+    "email": "martin@gmail.com",
+    "password": "12345"
+  },
+  {...}
+]
+````
