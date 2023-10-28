@@ -260,6 +260,122 @@ para que cuando hagamos `exit` en la terminal dentro del contenedor, éste se el
 el comando `-it` para utilizar el `terminal interactivo` del contenedor y finalmente le agregamos la instrucción
 `/bin/sh`.
 
+### Copiando archivos hacia/desde el contenedor en ejecución
+
+Podemos copiar archivos que están en nuestra pc local hacia dentro de un **contenedor que está en ejecución** y también
+en el otro sentido, es decir, copiar archivos que están dentro del contenedor en ejecución hacia nuestra pc local.
+
+Veamos cómo podemos **copiar un archivo de nuestra pc local hacia dentro del contenedor**. Primero crearemos un
+contenedor como en la sección anterior:
+
+````bash
+$ docker container run -p 8001:8001 --rm -it dk-ms-users /bin/sh
+/app # ls
+app.jar
+````
+
+Como observamos, tenemos en el `WORKDIR /app` nuestro empaquetado `jar`. A continuación abriremos otra terminal para ver
+los detalles del contenedor creado:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE         COMMAND     CREATED              STATUS              PORTS                    NAMES
+b03d590b8ce9   dk-ms-users   "/bin/sh"   About a minute ago   Up About a minute   0.0.0.0:8001->8001/tcp   keen_curran
+````
+
+Ahora, nos posicionaremos con la terminal en el directorio donde está el archivo que queremos copiar. En nuestro caso
+será un archivo `Login.java`:
+
+````bash
+M:\PROGRAMACION\DESARROLLO_JAVA_SPRING\INTELLIJ_IDEA\01.udemy\02.udemy_andres_guzman\03.docker_y_kubernetes_2023
+$ ls
+antiguo/  docker-kubernetes/  Login.java
+````
+
+Listo, ahora usamos el comando `cp` para copiar dicho archivo:
+
+````bash
+$ docker container cp .\Login.java b03d590b8ce9:/app/Login.java
+Successfully copied 2.56kB to b03d590b8ce9:/app/Login.java
+````
+
+**DONDE**  
+`cp`, copia archivos/carpetas entre un contenedor y el sistema de archivos local.  
+`.\Login.java b03d590b8ce9:/app/Login.java`, el archivo `Login.java` que será copiado en el contenedor con ID
+`b03d590b8ce9` y dentro del contenedor se copiará en el `WORKDIR /app`.
+
+Verificamos que el archivo `Login.java` esté en el `WORKDIR /app` y lo ejecutamos para ver que funciona:
+
+````bash
+$ docker container run -p 8001:8001 --rm -it dk-ms-users /bin/sh
+/app # ls
+app.jar
+/app # ls
+Login.java  app.jar
+/app # cat Login.java
+import java.util.Scanner;
+
+public class Login {
+    public static void main(String[] args) {
+
+        String[] usernames = {"andres", "admin", "pepe"};
+        String[] passwords = {"123", "1234", "12345"};
+
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.println("Ingrese el username");
+        String u = scanner.next();
+
+        System.out.println("Ingrese el password");
+        String p = scanner.next();
+
+        boolean esAutenticado = false;
+
+        for(int i = 0; i < usernames.length; i++){
+            esAutenticado = (usernames[i].equals(u) && passwords[i].equals(p))? true: esAutenticado;
+        }
+
+        String mensaje = esAutenticado ? "Bienvenido usuario ".concat(u).concat("!") :
+                "Username o contraseña incorrecto!\nLo sentimos, requiere autenticación";
+        System.out.println("mensaje = " + mensaje);
+
+    }
+}
+/app # javac Login.java
+/app # ls
+Login.class  Login.java   app.jar
+/app # java Login
+Ingrese el username
+admin
+Ingrese el password
+1234
+mensaje = Bienvenido usuario admin!
+/app #
+````
+
+Como observamos en el comando anterior, vemos que estamos interactuando con nuestro archivo dentro del contenedor en
+ejecución.
+
+Ahora, **copiaremos algún archivo que está dentro del contenedor hacia nuestra pc local**:
+
+````bash
+$ docker container cp b03d590b8ce9:/app/Login.java LoginCopy.java
+Successfully copied 2.56kB to M:\PROGRAMACION\DESARROLLO_JAVA_SPRING\INTELLIJ_IDEA\01.udemy\02.udemy_andres_guzman\03.docker_y_kubernetes_2023\LoginCopy.java
+````
+
+**DONDE**  
+`b03d590b8ce9`, ID del contenedor de donde copiaremos.  
+`/app/Login.java`, archivo que copiaremos del contenedor hacia nuestra pc local. También se puede copiar directorios.  
+`LoginCopy.java`, archivo de destino, lo renombramos a `LoginCopy.java`
+
+Al verificar si se realizó la copia, vemos que sí, en nuestra pc local ya tenemos el archivo `LoginCopy.java`:
+
+````bash
+M:\PROGRAMACION\DESARROLLO_JAVA_SPRING\INTELLIJ_IDEA\01.udemy\02.udemy_andres_guzman\03.docker_y_kubernetes_2023
+$ ls
+antiguo/  docker-kubernetes/  Login.java  LoginCopy.java
+````
+
 ---
 
 # Imágenes
