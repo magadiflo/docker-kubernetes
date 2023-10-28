@@ -6,7 +6,7 @@
 
 ---
 
-- **Crear un contenedor (default attach)**
+### Crear un contenedor (default attach)
 
 Si luego de que está ejecutándose el contenedor, presionamos `Ctrl + C`, detendremos el contenedor.
 
@@ -31,13 +31,13 @@ $ docker container run -p 8005:8001 dk-ms-users
 `dk-ms-users`, nombre de la imagen a partir del cual se crea el contenedor.  
 `¿Qué es el modo attach?`, la posesión de la terminal luego de ejecutar el comando.
 
-- **Crear un contenedor en modo dettach (-d)**
+### Crear un contenedor en modo dettach (-d)
 
 ````bash
 $ docker container run -d -p 8003:8001 dk-ms-users
 ````
 
-- **Volver a attachar un contenedor que está en ejecución, por su nombre o ID**
+### Attachar un contenedor que está en ejecución
 
 Si luego de que attachamos el contenedor, presionamos `Ctrl + C`, el contenedor se detendrá.
 
@@ -56,7 +56,10 @@ $ docker container attach 6bb53e81e181
         users u1_0
 ````
 
-- **Listar todos los contenedores (-a): Up y Exited**
+**DONDE**  
+`6bb53e81e181`, corresponde al ID del contenedor. También se puede utilizar el nombre del contenedor en lugar el ID.
+
+### Listar todos los contenedores (-a)
 
 ````bash
 $ docker container ls -a
@@ -65,19 +68,19 @@ CONTAINER ID   IMAGE         COMMAND               CREATED          STATUS      
 b3e0fd8e029d   dk-ms-users   "java -jar app.jar"   12 minutes ago   Exited (143) 4 minutes ago                            competent_ramanujan
 ````
 
-- **Detener un contenedor por su nombre o ID**
+### Detener un contenedor
 
 ````bash
 $ docker container stop 1493e4efbe4a
 ````
 
-- **Reiniciar un contenedor por su nombre o ID (default dettach)**
+### Reiniciar un contenedor (default dettach)
 
 ````bash
 $ docker container start 1493e4efbe4a
 ````
 
-- **Reiniciar un contenedor por su nombre o ID en modo attach (-a)**
+### Reiniciar un contenedor en modo attach (-a)
 
 Si luego de ejecutarse el contenedor presionamos `Ctrl + C`, detendremos el contenedor.
 
@@ -96,7 +99,7 @@ $ docker container start -a ca57c372b489
 2023-10-27T17:43:34.344Z  INFO 1 --- [
 ````
 
-- **Solo mostrar el log del contenedor por su nombre o ID**
+### Mostrar solo el log del contenedor
 
 El comando solo muestra el log, **no toma posesión del terminal:**
 
@@ -118,7 +121,7 @@ $ docker container logs 56cc2ac14229
 2023-10-27T18:16:53.442Z  INFO 1 --- [           main] c.m.d.b.d.u.app.DkMsUsersApplication     : Started DkMsUsersApplication in 14.002 seconds (process running for 15.416
 ````
 
-- **Mostrar y seguir la salida del log del contenedor por su nombre o ID (-f)**
+### Mostrar y seguir la salida del log del contenedor (-f)
 
 Además de mostrar el log del contenedor, el comando siguiente le da seguimiento. Si ya no queremos darle seguimiento,
 simplemente presionamos `Ctrl + C`, **eso hace que retomemos el control de la línea de comando y el contenedor seguirá
@@ -148,19 +151,19 @@ $ docker container logs -f 56cc2ac14229
         users u1_0
 ````
 
-- **Eliminar un contenedor que está detenido**
+### Eliminar un contenedor que está detenido
 
 ````bash
 $ docker container rm b6d46323c2d0
 ````
 
-- **Forzar la eliminación un contenedor que está siendo ejecutado**
+### Forzar la eliminación un contenedor que está siendo ejecutado
 
 ````bash
 $ docker container rm -f ca57c372b489
 ````
 
-- **Elimina todos los contenedores que están detenidos (Exited), los que están levantados (Up) no los toca**
+### Eliminar todos los contenedores que están detenidos (Exited), los que están levantados (Up) no los toca
 
 ````bash
 $ docker container prune
@@ -173,7 +176,7 @@ Deleted Containers:
 Total reclaimed space: 0B
 ````
 
-- **Elimina automáticamente el contenedor cuando se detiene (--rm)**
+### Eliminar automáticamente el contenedor cuando se detiene (--rm)
 
 Para eliminar automáticamente un contenedor cuando hagamos un `stop` o cuando ejecutemos algún comando que haga que el
 contenedor se detenga, debemos crear dicho contenedor agregando la bandera `--rm`:
@@ -211,7 +214,7 @@ $ docker container ls -a
 CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
 ````
 
-- **Ingresando en modo interactivo en contenedores en ejecución (exec -it)**
+### Ingresar en modo interactivo en contenedores en ejecución (exec -it)
 
 En algún momento **podemos requerir ingresar dentro de algún contenedor que se está ejecutando**, para eso podemos usar
 el siguiente comando:
@@ -237,7 +240,7 @@ Como se observa en el resultado anterior, pudimos ingresar dentro del contenedor
 listar el contenido del directorio actual `ls` y ¡Oh, sorpresa!, está el `app.jar` que compilamos al construir la
 imagen.
 
-- **Ingresar en modo interactivo al crear un contenedor (-it)**
+### Ingresar en modo interactivo al iniciar la creación de un nuevo contenedor (-it)
 
 En este caso vamos a crear un nuevo contenedor, pero vamos a ingresar directamente a él para inspeccionar su contenido y
 cuando salgamos de él con el comando `exit`, el contenedor se borrará automáticamente:
@@ -263,7 +266,7 @@ el comando `-it` para utilizar el `terminal interactivo` del contenedor y finalm
 
 ---
 
-- **Listar las imágenes**
+### Listar las imágenes
 
 ````bash
 $ docker image ls
@@ -272,7 +275,7 @@ dk-ms-users   latest    db7d7d6737b1   6 hours ago   387MB
 dk-ms-users   test      db7d7d6737b1   6 hours ago   387MB
 ````
 
-- **Eliminar una imagen con tag por defecto**
+### Eliminar una imagen con tag por defecto
 
 La instrucción siguiente eliminó la imagen `dk-ms-users`. Como no especificamos la etiqueta, por defecto elimina el
 `(TAG) latest` que es el tag por defecto. Si la imagen tiene contenedores ejecutándose mostrará mensajes de error y no
@@ -284,7 +287,7 @@ Untagged: dk-ms-users:latest
 Deleted: sha256:db7d7d6737b1cd72856f5d250b0b4da95e9a7d98e00b145c1aacecc8755b1bf0
 ````
 
-- **Eliminar una imagen especificando su tag**
+### Eliminar una imagen especificando su tag
 
 La instrucción siguiente eliminó la imagen `dk-ms-users` con `TAG test`. Si la imagen tiene contenedores ejecutándose
 mostrará mensajes de error y no podrá eliminarse.
@@ -294,7 +297,7 @@ $ docker image rm dk-ms-users:test
 Untagged: dk-ms-users:test
 ````
 
-- **Eliminar imágenes no utilizadas `<none>:<none>`**
+### Eliminar imágenes no utilizadas `<none>:<none>`
 
 ````bash
 $ docker image ls
