@@ -211,6 +211,52 @@ $ docker container ls -a
 CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
 ````
 
+- **Ingresando en modo interactivo en contenedores en ejecución (exec -it)**
+
+En algún momento **podemos requerir ingresar dentro de algún contenedor que se está ejecutando**, para eso podemos usar
+el siguiente comando:
+
+````bash
+$ docker exec -it b4a898eb2f19 /bin/sh
+/app # ls
+app.jar
+/app # cd ..
+/ # ls
+app    bin    dev    etc    home   lib    media  mnt    opt    proc   root   run    sbin   srv    sys    tmp    usr    var
+/ # exit
+````
+
+**DONDE**  
+`exec`, ejecuta un comando en un **contenedor Docker en ejecución.**  
+`-it`, interactive terminal, nos permiten interactuar directamente con el shell del contenedor.  
+`/bin/sh`, es el comando que se ejecutará en el contenedor. En este caso, se está ejecutando un shell interactivo (por
+lo general, sh, que es el shell Bourne). Esto te permite acceder al entorno del contenedor y ejecutar comandos dentro de
+él.
+
+Como se observa en el resultado anterior, pudimos ingresar dentro del contenedor en ejecución y lo primero que hice fue
+listar el contenido del directorio actual `ls` y ¡Oh, sorpresa!, está el `app.jar` que compilamos al construir la
+imagen.
+
+- **Ingresar en modo interactivo al crear un contenedor (-it)**
+
+En este caso vamos a crear un nuevo contenedor, pero vamos a ingresar directamente a él para inspeccionar su contenido y
+cuando salgamos de él con el comando `exit`, el contenedor se borrará automáticamente:
+
+````bash
+$ docker container run -p 8001:8001 --rm -it dk-ms-users /bin/sh
+/app # ls
+app.jar
+/app # exit
+
+$ docker container list -a
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+````
+
+Como observamos en la salida anterior, vemos que **creamos un contenedor nuevo** pero le agregamos los comandos `--rm`
+para que cuando hagamos `exit` en la terminal dentro del contenedor, éste se elimine automáticamente. También usamos
+el comando `-it` para utilizar el `terminal interactivo` del contenedor y finalmente le agregamos la instrucción
+`/bin/sh`.
+
 ---
 
 # Imágenes
