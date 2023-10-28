@@ -173,6 +173,44 @@ Deleted Containers:
 Total reclaimed space: 0B
 ````
 
+- **Elimina automáticamente el contenedor cuando se detiene (--rm)**
+
+Para eliminar automáticamente un contenedor cuando hagamos un `stop` o cuando ejecutemos algún comando que haga que el
+contenedor se detenga, debemos crear dicho contenedor agregando la bandera `--rm`:
+
+````bash
+$ docker container run -d -p 8001:8001 --rm dk-ms-users
+13580ad5259133bd21eacc9e2f4c7768abdc8990adc89c70b681dd9469f7ed68
+````
+
+**DONDE**  
+`-d`, indica que el contenedor se creará en modo `dettached`, es decir, desacoplado de la línea de comando.  
+`--rm`, nos permite eliminar automáticamente el contenedor cuando se detenga.
+
+En el comando anterior hemos creado un contenedor al que le agregamos la bandera `--rm`. Ahora, listemos los
+contenedores para ver el que acabamos de crear.
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE         COMMAND               CREATED          STATUS          PORTS                    NAMES
+13580ad52591   dk-ms-users   "java -jar app.jar"   11 seconds ago   Up 10 seconds   0.0.0.0:8001->8001/tcp   romantic_greider
+````
+
+Ahora, detengamos el contenedor ejecutando el siguiente comando:
+
+````bash
+$ docker container stop 13580ad52591
+13580ad52591
+````
+
+Finalmente, si volvemos a listar los contenedores, veremos que el contenedor que detuvimos
+**se eliminó automáticamente:**
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+````
+
 ---
 
 # Imágenes
