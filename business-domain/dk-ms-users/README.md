@@ -1528,3 +1528,55 @@ CMD ["java", "-jar", "app.jar"]
 Como observamos, en la segunda etapa de la construcción de la imagen estamos creando el directorio `/logs` con la
 instrucción: `RUN mkdir ./logs`. Recordar que el `./` corresponden al `WORKDIR`, por lo que el directorio creado
 finalmente será `/app/logs`.
+
+---
+
+# Sección 9: Docker Networks: Comunicación entre contenedores
+
+---
+
+## Dockerizando microservicio cursos y configurando la red o network
+
+La mayor parte del trabajo realizado en esta sección es en el microservicio `dk-ms-courses`, pero aquí en
+el `dk-ms-users` también requerimos hacer ciertos cambios para establecer la comunicación con el otro microservicio.
+
+Los cambios realizados en este microservicio `dk-ms-users` serán en la interfaz del cliente feign `ICourseFeignClient`:
+
+````java
+
+@FeignClient(name = "dk-ms-courses", url = "dk-ms-courses:8002", path = "/api/v1/courses")
+public interface ICourseFeignClient {
+    /* code */
+}
+````
+
+Recordemos que antes del cambio realizado, el valor del url era `url = "host.docker.internal:8002"`, donde estábamos
+usando un dominio especial de docker llamado `host.docker.internal`, que nos permitía comunicarnos **desde adentro del
+contenedor hacia afuera, hacia nuestra máquina local**, donde precisamente estába corriendo en nuestro IDE de
+IntelliJ IDEA la aplicación del microservicio `dk-ms-courses`. Es decir, nuestra aplicación `dk-ms-users` dockerizada
+estába comunicándose con la aplicación `dk-ms-courses` no deckerizada.
+
+Ahora, llega el momento de dockerizar la aplicación de `dk-ms-courses` y nuestra aplicación dockerizada `dk-ms-users`
+debe apuntar a esa aplicación que ahora estará dockerizada, es por esa razón que cambiamos el `host.docker.internal` por
+el nombre del contenedor al que apuntará, es decir, cuando creemos un contenedor del microservicio de cursos, debemos
+asignarle un nombre con `--name` llamado `dk-ms-courses` y es ese nombre que hace referencia en la `url`.
+
+**En resumen:**
+
+- `name = "dk-ms-courses"`, hace referencia al nombre del microservicio que consumiremos. El nombre está definido en el
+  microservicio a consumir, en su archivo application.yml
+- `url = "dk-ms-courses:8002"`, hace referencia al nombre del contenedor que le daremos cuando se cree con la bandera
+  `--name`. El puerto seguirá siendo el mismo.
+
+Como hemos realizado modificaciones a este microservicio, debemos volver a generar su imagen para tener los cambios:
+
+````bash
+$ docker build -t dk-ms-users:v2 . -f .\business-domain\dk-ms-users\Dockerfile
+
+$ docker image ls
+REPOSITORY      TAG       IMAGE ID       CREATED         SIZE
+dk-ms-courses   latest    b579ec873861   3 minutes ago   385MB
+dk-ms-courses   v2        b579ec873861   3 minutes ago   385MB
+dk-ms-users     latest    583a7919c097   7 minutes ago   387MB
+dk-ms-users     v2        583a7919c097   7 minutes ago   387MB
+````

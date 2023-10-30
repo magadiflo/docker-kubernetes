@@ -311,3 +311,20 @@ En esta sección veremos **cómo trabajar con redes dentro de docker**, veremos 
 comunicar unos con otros, cómo comunicar un contenedor con el exterior, etc.
 
 ![10.contenedores-network.png](./assets/10.contenedores-network.png)
+
+## Dockerizando microservicio cursos y configurando la red o network
+
+Crearemos una red al que le llamaremos `spring-net`, con la finalidad de que los contenedores se conecten a esa red
+para que puedan comunicarse:
+
+````bash
+$ docker network create spring-net
+b56a0e223484cd5905e3890566b0e6767dd6bb28627ea446cedf02f03980c323
+
+$ docker network ls
+NETWORK ID     NAME         DRIVER    SCOPE
+1cef9871b914   bridge       bridge    local
+6dac92048c81   host         host      local
+4eea7e69fe4f   none         null      local
+b56a0e223484   spring-net   bridge    local
+````

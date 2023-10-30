@@ -1230,3 +1230,88 @@ public class CourseController {
 }
 ````
 
+---
+
+# Sección 9: Docker Networks: Comunicación entre contenedores
+
+---
+
+## Dockerizando microservicio cursos y configurando la red o network
+
+Hasta ahora este microservicio de cursos lo hemos estado trabajando sin dockerizar, así que ahora llega el momento de
+hacerlo. El primer cambio que haremos será modificar el `application.yml`:
+
+````yaml
+# other properties
+
+spring:
+  # other properties
+
+  datasource:
+    url: jdbc:postgresql://host.docker.internal:5432/db_dk_ms_courses
+    # other properties
+
+logging:
+  # other properties 
+  file:
+    name: /app/logs/dk-ms-courses.log
+````
+
+Como nuestro microservicio de cursos estará dockerizada, necesitamos que el contenedor apunte hacia nuestra máquina
+local, que es donde tenemos instalada `PostgreSQL`. Para eso cambiamos el `localhost` por `host.docker.internal`.
+También agregamos la ruta del login donde guardar los registros, pero eso es solo por que esté igual que el otro
+microservicio.
+
+Otra modificación que tenemos que hacer es en el archivo `IUserFeignClient`:
+
+````java
+
+@FeignClient(name = "dk-ms-users", url = "dk-ms-users:8001", path = "/api/v1/users")
+public interface IUserFeignClient {
+    // code
+}
+````
+
+**DONDE**
+
+- `name = "dk-ms-users"`, corresponde al nombre del microservicio que vamos a consumir.
+- `url = "dk-ms-users:8001"`, corresponde al nombre que le daremos al contenedor cuando creemos uno con la
+  bandera `--name`. El puerto seguirá siendo el mismo.
+
+Finalmente, copiaremos el `Dockerfile` del microservicio de usuarios y le realizaremos algunos cambios para nuestro
+microservicio de cursos:
+
+````Dockerfile
+FROM openjdk:17-jdk-alpine AS builder
+WORKDIR /app/business-domain/dk-ms-courses
+COPY ./pom.xml /app
+COPY ./business-domain/pom.xml /app/business-domain
+COPY ./business-domain/dk-ms-courses/pom.xml ./
+COPY ./business-domain/dk-ms-courses/mvnw ./
+COPY ./business-domain/dk-ms-courses/.mvn ./.mvn
+RUN sed -i -e 's/\r$//' ./mvnw
+RUN ./mvnw dependency:go-offline
+COPY ./business-domain/dk-ms-courses/src ./src
+RUN ./mvnw clean package -DskipTests
+
+FROM openjdk:17-jdk-alpine
+WORKDIR /app
+RUN mkdir ./logs
+COPY --from=builder /app/business-domain/dk-ms-courses/target/*.jar ./app.jar
+EXPOSE 8002
+CMD ["java", "-jar", "app.jar"]
+````
+
+Ahora que ya tenemos lo necesario, crearemos la imagen del microservicio de cursos:
+
+````bash
+$ docker build -t dk-ms-courses:v2 . -f .\business-domain\dk-ms-courses\Dockerfile
+[+] Building 1.8s (20/20) FINISHED
+
+$ docker image ls
+REPOSITORY      TAG       IMAGE ID       CREATED         SIZE
+dk-ms-courses   latest    b579ec873861   3 minutes ago   385MB
+dk-ms-courses   v2        b579ec873861   3 minutes ago   385MB
+dk-ms-users     latest    583a7919c097   7 minutes ago   387MB
+dk-ms-users     v2        583a7919c097   7 minutes ago   387MB
+````
