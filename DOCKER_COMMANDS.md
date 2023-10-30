@@ -461,6 +461,56 @@ $ cat dk-ms-users.log
 ...
 ````
 
+### Inspeccionando Contenedores
+
+El comando `inspect` nos permite ver información detallada de los contenedores. Veamos el ejemplo:
+
+````bash
+$ docker container inspect 8a3c5fb06639
+[
+    {
+        "Id": "8a3c5fb0663918ff1be3c392315b58e42da200ba1fa5ff7e834505b49900362c",
+        "Created": "2023-10-30T15:35:48.8339819Z",
+        "Path": "java",
+        "Args": [
+            "-jar",
+            "app.jar"
+        ],
+        ...
+            "Cmd": [
+                "java",
+                "-jar",
+                "app.jar"
+            ],
+            "Image": "dk-ms-users",
+            ...
+        },
+        "NetworkSettings": {
+            ...
+            "Ports": {
+                "8001/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "8001"
+                    }
+                ]
+            },
+            ...
+            "IPAddress": "172.17.0.2",            
+            ...
+            "Networks": {
+                "bridge": {
+                    ...
+                    "Gateway": "172.17.0.1",
+                    "IPAddress": "172.17.0.2",
+                    ...
+                }
+            }
+        }
+    }
+]
+````
+
 ---
 
 # Imágenes
@@ -519,4 +569,45 @@ $ docker image ls
 REPOSITORY    TAG           IMAGE ID       CREATED       SIZE
 dk-ms-users   development   db7d7d6737b1   7 hours ago   387MB
 dk-ms-users   latest        db7d7d6737b1   7 hours ago   387MB
+````
+
+### Inspeccionando Imágenes
+
+El comando `inspect` nos permite ver información detallada de las imágenes. Veamos el ejemplo:
+
+````bash
+$ docker image ls
+REPOSITORY    TAG       IMAGE ID       CREATED             SIZE
+dk-ms-users   latest    8048af278d64   12 minutes ago      387MB
+
+$ docker image inspect dk-ms-users
+[
+    {
+        "Id": "sha256:8048af278d6431281b912ae01fc6c59bb6461479342ed04e09b69993e2915391",
+        "RepoTags": [
+            "dk-ms-users:latest"
+        ],
+        "Config": {
+           ...
+            "ExposedPorts": {
+                "8001/tcp": {}
+            },
+            ...
+            "Env": [
+                "PATH=/opt/openjdk-17/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "JAVA_HOME=/opt/openjdk-17",
+                "JAVA_VERSION=17-ea+14"
+            ],
+            "Cmd": [
+                "java",
+                "-jar",
+                "app.jar"
+            ],
+            ...
+            "WorkingDir": "/app",
+            "...
+        },
+        ...
+    }
+]
 ````
