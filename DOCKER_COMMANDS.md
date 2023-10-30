@@ -511,6 +511,17 @@ $ docker container inspect 8a3c5fb06639
 ]
 ````
 
+## Nombrando contenedores (--name)
+
+Cuando creamos contenedores, si no le asignamos explícitamente un nombre Docker le asignará aleatoriamente uno por
+nosotros. Mientras que si usamos la bandera `--name` podremos asignarle un nombre al contenedor. En este caso, crearemos
+un contenedor con nombre `users-dev`:
+
+````bash
+$ docker container run -d -p 8001:8001 --rm --name users-dev dk-ms-users
+303e90c38f234224a04d916fd275ea5b9f59eb42e105446161204152905e7f81
+````
+
 ---
 
 # Imágenes
@@ -610,4 +621,26 @@ $ docker image inspect dk-ms-users
         ...
     }
 ]
+````
+
+## Etiquetando imágenes
+
+Podemos crear las imágenes asignándole una etiqueta (tag) específica. **Si no le asignamos ninguna etiqueta, por defecto
+tomará el valor de** `tag`.
+
+Para el ejemplo siguiente, crearemos una imagen con la etiqueta `v2`. Hasta el momento ya tenemos creada una imagen
+previa cuya etiqueta es `latest`:
+
+````bash
+$  docker build -t dk-ms-users:v2 . -f .\business-domain\dk-ms-users\Dockerfile
+[+] Building 2.1s (20/20) FINISHED
+````
+
+Ahora, verificamos que el tag tenga nuestra etiqueta:
+
+````bash
+$ docker image ls
+REPOSITORY    TAG       IMAGE ID       CREATED          SIZE
+dk-ms-users   latest    8048af278d64   56 minutes ago   387MB
+dk-ms-users   v2        8048af278d64   56 minutes ago   387MB <-- Nuestra última imagen creada con tag v2
 ````
