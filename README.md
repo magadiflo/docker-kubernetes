@@ -300,3 +300,14 @@ $ java -jar dk-ms-users-0.0.1-SNAPSHOT.jar
 
 A continuación veremos que nuestra aplicación se empieza a levantar. La idea ahora es realizar todos estos pasos pero
 usando Docker, es decir `dockerizar` la aplicación, configurar un contenedor, una imagen, etc.
+
+---
+
+# Sección 9: Docker Networks: Comunicación entre contenedores
+
+---
+
+En esta sección veremos **cómo trabajar con redes dentro de docker**, veremos cómo es que los contenedores se pueden
+comunicar unos con otros, cómo comunicar un contenedor con el exterior, etc.
+
+![10.contenedores-network.png](./assets/10.contenedores-network.png)
