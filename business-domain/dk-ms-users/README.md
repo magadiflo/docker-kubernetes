@@ -1483,3 +1483,48 @@ $ curl -v http://localhost:8001/api/v1/users | jq
   {...}
 ]
 ````
+
+## [Logging to a File](https://reflectoring.io/springboot-logging/)
+
+Podemos escribir nuestros registros en una ruta de archivo estableciendo solo una de las propiedades `logging.file.name`
+o `logging.file.path` en nuestro `application.properties`. Por defecto, para la salida de archivos, el nivel de
+registro se establece en `info`.
+
+En nuestro caso, utilizaremos la siguiente configuración en nuestro `application.yml` para guardar el log en un
+archivo personalizado llamado `dk-ms-users.log` en la ruta `/app/logs/`:
+
+````yaml
+## More properties
+logging:
+  # Another property
+  file:
+    name: /app/logs/dk-ms-users.log
+````
+
+Ahora, otra forma de obtener el log es usando la configuración del `path`, en ese caso, la salida al archivo por defecto
+se llamará `spring.log` y se ubicará en el path definido, por ejemplo `/app/logs/`:
+
+````yaml
+logging:
+  file:
+    path: /app/logs
+````
+
+Si se establecen ambas propiedades, solo tiene efecto `logging.file.name`.
+
+Ahora, al momento de construir la imagen, debemos crear manualmente el directorio `/app/logs` donde el
+`dk-ms-users.log` estará almacenado. Para eso debemos agregar la siguiente instrucción a nuestro `Dockerfile`:
+
+````dockerfile
+# First Stage
+# Second Stage
+FROM openjdk:17-jdk-alpine
+WORKDIR /app
+RUN mkdir ./logs
+# Other code
+CMD ["java", "-jar", "app.jar"]
+````
+
+Como observamos, en la segunda etapa de la construcción de la imagen estamos creando el directorio `/logs` con la
+instrucción: `RUN mkdir ./logs`. Recordar que el `./` corresponden al `WORKDIR`, por lo que el directorio creado
+finalmente será `/app/logs`.
