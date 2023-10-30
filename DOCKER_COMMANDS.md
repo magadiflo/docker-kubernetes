@@ -376,6 +376,91 @@ $ ls
 antiguo/  docker-kubernetes/  Login.java  LoginCopy.java
 ````
 
+### Copiando archivos logs de spring desde el contenedor
+
+Recordar que en el `application.yml` configuramos la ruta y el nombre del archivo log a generar y luego en el
+`Dockerfile` agregamos el comando `RUN mkdir ./logs` para crear el directorio donde almacenaremos el archivo log.
+
+Entonces, para copiar un archivo log de spring desde el contenedor, lo primero que haremos será construir la imagen,
+puesto que hicimos modificaciones en el `dk-ms-users`:
+
+````bash
+$ docker build -t dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
+
+$ docker image ls
+REPOSITORY    TAG       IMAGE ID       CREATED             SIZE
+dk-ms-users   latest    8048af278d64   16 seconds ago      387MB
+````
+
+Levantamos un contenedor en modo dettached y con autoeliminación:
+
+````bash
+$ docker container run -d -p 8001:8001 --rm dk-ms-users
+8a3c5fb0663918ff1be3c392315b58e42da200ba1fa5ff7e834505b49900362c
+````
+
+Verificamos en consola el log generado por nuestra aplicación dentro del contenedor:
+
+````bash
+$ docker container logs 8a3c5fb06639
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.1.4)
+...
+...
+2023-10-30T15:35:57.085Z  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8001 (http)
+...
+2023-10-30T15:36:05.319Z  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8001 (http) with context path ''
+...
+````
+
+Ahora, debemos verificar que ese mismo log generado en consola debe estar guardado dentro del contenedor en la ruta que
+especificamos en el `application.yml`. Para eso usamos el comando `exec -it`:
+
+````bash
+$ docker exec -it 8a3c5fb06639 /bin/sh
+/app # ls
+app.jar  logs
+/app # cd logs
+/app/logs # ls
+dk-ms-users.log
+/app/logs # cat dk-ms-users.log
+...
+2023-10-30T15:35:57.085Z  INFO 1 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8001 (http)
+...
+2023-10-30T15:36:05.319Z  INFO 1 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8001 (http) with context path ''
+2023-10-30T15:36:05.352Z  INFO 1 --- [main] c.m.d.b.d.u.app.DkMsUsersApplication     : Started DkMsUsersApplication in 14.24 seconds (process running for 15.611)
+/app/logs #
+````
+
+Podemos copiar el log generado en el contenedor hacia nuestra máquina local usando el comando `cp`. En nuestro caso
+lo copiaremos en la ruta en la que actualmente nos encontramos posicionados en la línea de comandos. Por defecto, no
+tenemos creado el directorio `./logs` en nuestra máquina local, `docker` lo creará por nosotros para que haga la copia.
+
+````bash
+$ docker container cp 8a3c5fb06639:/app/logs ./logs
+Successfully copied 6.14kB to M:\PROGRAMACION\DESARROLLO_JAVA_SPRING\INTELLIJ_IDEA\01.udemy\02.udemy_andres_guzman\03.docker_y_kubernetes_2023\docker-kubernetes\logs
+````
+
+Ahora, revisamos el contenido del archivo log copiado en nuestra máquina local:
+
+````bash
+$ ls
+dk-ms-users.log
+
+$ cat dk-ms-users.log
+...
+2023-10-30T15:35:57.085Z  INFO 1 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8001 (http)
+...
+2023-10-30T15:36:05.319Z  INFO 1 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8001 (http) with context path ''
+...
+````
+
 ---
 
 # Imágenes
