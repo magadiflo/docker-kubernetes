@@ -328,3 +328,221 @@ NETWORK ID     NAME         DRIVER    SCOPE
 4eea7e69fe4f   none         null      local
 b56a0e223484   spring-net   bridge    local
 ````
+
+## Comunicación entre contenedores
+
+Hasta este punto los dos microservicios de este proyecto `dk-ms-users` y el `dk-ms-courses` cuentan con sus
+respectivos `Dockerfile`, así que ahora procederemos a generar una imagen a partir del código fuente.
+
+A continuación se listan las imágenes ya creadas de los microservicios. He creado dos versiones para cada microservicio,
+con la finalidad de trabajar siempre con versiones etiquetadas y en lo preferible evitar usar el `latest` como
+buena práctica.
+
+````bash
+$ docker image ls
+REPOSITORY      TAG       IMAGE ID       CREATED       SIZE
+dk-ms-courses   latest    b579ec873861   5 hours ago   385MB
+dk-ms-courses   v2        b579ec873861   5 hours ago   385MB
+dk-ms-users     latest    583a7919c097   5 hours ago   387MB
+dk-ms-users     v2        583a7919c097   5 hours ago   387MB
+````
+
+Ahora, a partir de las imágenes creadas, crearemos un contenedor para cada uno de ellas:
+
+````bash
+$ docker container run -d -p 8001:8001 --rm --name dk-ms-users --network spring-net dk-ms-users:v2
+c12fa66e43f3c7dcde7e92e9bfd883c74c3d1298ae0e54d3a030f1980571fcda
+````
+
+**NOTA**
+
+- `--name dk-ms-users`, notar que aquí le estamos dando un nombre al contenedor. Este nombre es muy importante, porque
+  lo utiliza el microservicio `dk-ms-courses` para poder comunicarse con él. Si vamos a la interfaz `IUserFeignClient`
+  del microservicio `dk-ms-courses` veremos que lo estamos usando en la `url` así como se muestra en el siguiente
+  fragmento `@FeignClient(url = "dk-ms-users:8001"...)`.
+- `--network spring-net`, especificamos la red que creamos para que sea usado por el contenedor.
+
+````bash
+$ docker container run -d -p 8002:8002 --rm --name dk-ms-courses --network spring-net dk-ms-courses:v2
+040dd8b4457254e7395695602be4fdf8d760c4bd04aa6e1513e0718287a3b44
+````
+
+**NOTA**
+
+- `--name dk-ms-courses`, notar que aquí le estamos dando un nombre al contenedor. Este nombre es muy importante, porque
+  lo utiliza el microservicio `dk-ms-users` para poder comunicarse con él. Si vamos a la interfaz `ICourseFeignClient`
+  del microservicio `dk-ms-users` veremos que lo estamos usando en la `url` así como se muestra en el siguiente
+  fragmento `@FeignClient(url = "dk-ms-users:8002"...)`.
+- `--network spring-net`, especificamos la red que creamos para que sea usado por el contenedor.
+
+Listamos los dos contenedores creados:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE              COMMAND               CREATED         STATUS         PORTS                    NAMES
+040dd8b44572   dk-ms-courses:v2   "java -jar app.jar"   4 seconds ago   Up 2 seconds   0.0.0.0:8002->8002/tcp   dk-ms-courses
+c12fa66e43f3   dk-ms-users:v2     "java -jar app.jar"   2 minutes ago   Up 2 minutes   0.0.0.0:8001->8001/tcp   dk-ms-users
+````
+
+Si inspeccionamos cada contenedor podemos ver que están usando la misma red que le asignamos:
+
+````bash
+$ docker container inspect dk-ms-courses
+[
+  {
+    "Ports": {
+        "8002/tcp": [
+            {
+                "HostIp": "0.0.0.0",
+                "HostPort": "8002"
+            }
+        ]
+    },
+    "Networks": {
+        "spring-net": {
+            "IPAMConfig": null,
+            ...
+        }
+    }
+  }
+]
+````
+
+Otra forma de saber qué contenedores tiene la red `spring-net` es ejecutando el siguiente comando de `network`:
+
+````bash
+$ docker network inspect spring-net
+[
+    {
+        "Name": "spring-net",
+        ...
+        "IPAM": {
+            ...
+            "Config": [
+                {
+                    "Subnet": "172.18.0.0/16",
+                    "Gateway": "172.18.0.1"
+                }
+            ]
+        },
+        ...
+        "Containers": {
+            "040dd8b4457254e7395695602be4fdf8d760c4bd04aa6e1513e0718287a3b445": {
+                "Name": "dk-ms-courses",
+                "EndpointID": "776a22e5dc5ee363a8b9ad54ea19121f573b6a4b89555bf3f90e906b333ab593",
+                "MacAddress": "02:42:ac:12:00:03",
+                "IPv4Address": "172.18.0.3/16",
+                "IPv6Address": ""
+            },
+            "c12fa66e43f3c7dcde7e92e9bfd883c74c3d1298ae0e54d3a030f1980571fcda": {
+                "Name": "dk-ms-users",
+                "EndpointID": "4390745f4b15a05b1a8055dc95b39fb972a626327e411ce35144bf400a2d3693",
+                "MacAddress": "02:42:ac:12:00:02",
+                "IPv4Address": "172.18.0.2/16",
+                "IPv6Address": ""
+            }
+        },
+        ...
+    }
+]
+````
+
+### Funcionamiento de Contenedores
+
+Realizamos una petición al contenedor de usuarios y vemos que nos responde exitosamente:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[
+  {
+    "id": 2,
+    "name": "Martin",
+    "email": "martin@gmail.com",
+    "password": "12345"
+  },
+  {...}
+]
+````
+
+Realizamos una petición al contenedor de cursos y vemos que nos responde exitosamente:
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+
+<
+[
+  {
+    "id": 1,
+    "name": "Kubernetes",
+    "courseUsers": [
+      {
+        "id": 1,
+        "userId": 2
+      }
+    ],
+    "users": []
+  },
+  {...}
+]
+````
+
+### Comunicando contenedores
+
+Ahora, verificamos si ambos contenedores se están comunicando. Si realizamos la petición al contenedor courses para ver
+el detalle de un curso, éste internamente se tiene que comunicar con el microservicio de usuarios para obtener el
+detalle completo de los usuarios que pertenecen al curso consultado.
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses/1 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "Kubernetes",
+  "courseUsers": [
+    {
+      "id": 1,
+      "userId": 2
+    }
+  ],
+  "users": [
+    {
+      "id": 2,
+      "name": "Martin",
+      "email": "martin@gmail.com",
+      "password": "12345"
+    }
+  ]
+}
+````
+
+Para hacerlo más interesante aún, vamos a crear un usuario y a continuación asignarlo al curso con `id=1`. Todo esto se
+realiza mediante la comunicación entre los contenedores:
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"Alicia\", \"email\": \"alicia@gmail.com\", \"password\": \"12345\"}" http://localhost:8002/api/v1/courses/create-user-and-assign-to-course/1 | jq
+
+>
+< HTTP/1.1 201
+< Location: http://localhost:8002/api/v1/courses/create-user-and-assign-to-course/1/7
+< Content-Type: application/json
+<
+{
+  "id": 7,
+  "name": "Alicia",
+  "email": "alicia@gmail.com",
+  "password": "12345"
+}
+````
