@@ -1315,3 +1315,49 @@ dk-ms-courses   v2        b579ec873861   3 minutes ago   385MB
 dk-ms-users     latest    583a7919c097   7 minutes ago   387MB
 dk-ms-users     v2        583a7919c097   7 minutes ago   387MB
 ````
+
+## Dockerizando PostgreSQL
+
+Actualmente, estoy conectando nuestros contenedores del microservicio `dk-ms-courses` hacía PostgreSQL que está
+instalado en mi máquina local. Pero ahora, vamos a contenerizar `PostgreSQL` para usarlo como un contenedor dentro de
+nuestra plataforma de `Docker`.
+
+Cuando contenerizamos la base de datos de MySQL, lo primero que hicimos fue descargar la imagen con el
+comando `docker pull`, pero en esta ocasión, con `PostgreSQL` crearemos directamente el contenedor. Docker al ver que
+no lo tenemos descargado, nos mostrará el mensaje `Unable to find image 'postgres:14-alpine' locally` y lo empezará
+a descargar por nosotros, posteriormente creará nuestro contenedor.
+
+````bash
+$ docker container run -d -p 5433:5432 --name postgres-14 --network spring-net -e POSTGRES_PASSWORD=magadiflo -e POSTGRES_DB=db_dk_ms_courses postgres:14-alpine
+Unable to find image 'postgres:14-alpine' locally
+14-alpine: Pulling from library/postgres
+96526aa774ef: Pull complete
+...
+1c5e4ba76017: Pull complete
+Digest: sha256:874f566dd512d79cf74f59754833e869ae76ece96716d153b0fa3e64aec88d92
+Status: Downloaded newer image for postgres:14-alpine
+a28d341a25c5986ae23781ec711c7e814c6989c541c868694b85d714ed1a5a8c
+````
+
+**DONDE**
+
+- `-p 5433:5432`, el puerto externo estamos colocando en `5433`, ya que actualmente tenemos PostgreSQL en nuestra pc
+  local que está corriendo en el puerto `5432`. El puerto interno lo dejamos tal cual `5432`, ya que eso trabaja al
+  interno del contenedor, mientras que el externo hace referencia a nuestra máquina local.
+- `--name postgres-14`, le damos un nombre al contenedor.
+- `--network spring-net`, lo agregamos a la red donde están los otros dos microservicios.
+- `-e (--env)`, nos permite establecer variables de entorno. Cada variable de entorno a definir, debe estar precedido
+  por la bandera `-e` o `--env`. Notar que, como no estamos especificando un usuario, la imagen de PostgreSQL usará por
+  defecto el usuario `postgres`.
+
+Listando los contenedores:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE                COMMAND                  CREATED         STATUS                       PORTS                               NAMES
+a28d341a25c5   postgres:14-alpine   "docker-entrypoint.s…"   8 minutes ago   Up 8 minutes                 0.0.0.0:5433->5432/tcp              postgres-14
+abe9d3014495   mysql:8              "docker-entrypoint.s…"   15 hours ago    Exited (255) 9 minutes ago   33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+````
+
+Podemos verificar si podemos conectarnos desde DBeaver instalada en nuestra pc local hacia PostgreSQL que ahora mismo
+está ejecutándose en el puerto externo `5433` del contenedor `postgres-14`. El resultado debe ser una conexión exitosa.
