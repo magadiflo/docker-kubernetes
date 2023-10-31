@@ -1721,3 +1721,57 @@ $ docker network inspect spring-net
     }
 ]
 ````
+
+## Revisando microservicios dockerizados
+
+Ahora que tenemos nuestras aplicaciones dockerizadas así como las bases de datos, llega el momento de realizar las
+peticiones para comprobar si funcionan correctamente.
+
+Guardamos un usuario utilizando nuestro microservicio `dk-ms-users` y la base de datos de `MySQL`, ambos dockerizados:
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"martin\", \"email\":\"martin@gmail.com\", \"password\": \"12345\"}" http://localhost:8001/api/v1/users | jq
+
+>
+< HTTP/1.1 201
+< Location: http://localhost:8001/api/v1/users/1
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "martin",
+  "email": "martin@gmail.com",
+  "password": "12345"
+}
+````
+
+Agregamos nuevos usuarios y los listamos:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[
+  {
+    "id": 1,
+    "name": "martin",
+    "email": "martin@gmail.com",
+    "password": "12345"
+  },
+  {
+    "id": 2,
+    "name": "Alison",
+    "email": "alison@gmail.com",
+    "password": "12345"
+  },
+  {
+    "id": 3,
+    "name": "Tinkler",
+    "email": "tinkler@gmail.com",
+    "password": "12345"
+  }
+]
+````

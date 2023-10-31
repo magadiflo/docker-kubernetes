@@ -1444,3 +1444,100 @@ $ docker network inspect spring-net
     }
 ]
 ````
+
+## Revisando microservicios dockerizados
+
+Ahora que tenemos nuestras aplicaciones dockerizadas así como las bases de datos, llega el momento de realizar las
+peticiones para comprobar si funcionan correctamente.
+
+Guardamos un curso utilizando nuestro microservicio `dk-ms-courses` y la base de datos de `PostreSQL`, ambos
+dockerizados:
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"Docker\"}" http://localhost:8002/api/v1/courses | jq
+
+>
+< HTTP/1.1 201
+< Location: http://localhost:8002/api/v1/courses/1
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "Docker",
+  "courseUsers": [],
+  "users": []
+}
+````
+
+Creamos un nuevo usuario y lo asignamos al curso con id = 1:
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"Alicia\", \"email\": \"alicia@gmail.com\", \"password\": \"12345\"}" http://localhost:8002/api/v1/courses/create-user-and-assign-to-course/1 | jq
+
+>
+< HTTP/1.1 201
+< Location: http://localhost:8002/api/v1/courses/create-user-and-assign-to-course/1/4
+< Content-Type: application/json
+<
+{
+  "id": 4,
+  "name": "Alicia",
+  "email": "alicia@gmail.com",
+  "password": "12345"
+}
+````
+
+Asignando un usuario existente al curso con id = 1:
+
+````bash
+$ curl -v -X PUT -H "Content-Type: application/json" -d "{\"id\": 1, \"name\": \"martin\", \"email\": \"martin@gmail.com\", \"password\": \"12345\"}" http://localhost:8002/api/v1/courses/assign-user-to-course/1 | jq
+
+} [77 bytes data]
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "martin",
+  "email": "martin@gmail.com",
+  "password": "12345"
+}
+````
+
+Vemos el detalle del curso con id = 1, nos traerá la información completa de los usuarios que están en dicho curso:
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses/1 | jq
+
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "Docker",
+  "courseUsers": [
+    {
+      "id": 1,
+      "userId": 4
+    },
+    {
+      "id": 2,
+      "userId": 1
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "name": "martin",
+      "email": "martin@gmail.com",
+      "password": "12345"
+    },
+    {
+      "id": 4,
+      "name": "Alicia",
+      "email": "alicia@gmail.com",
+      "password": "12345"
+    }
+  ]
+}
+````
