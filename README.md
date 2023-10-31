@@ -546,3 +546,82 @@ $ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"Alicia\",
   "password": "12345"
 }
 ````
+
+## Problema con persistencia de datos en MySQL/Postgres al eliminar el contenedor
+
+Recordemos que en la sección **"Revisando microservicios dockerizados"** hicimos pruebas con todos los contenedores y
+todo estuvo funcionando correctamente. Pero, qué pasa si **¡eliminamos los contenedores de las bases de datos y los
+volvemos a crear!**
+
+Veamos que actualmente tenemos los contenedores ejecutándose:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE                COMMAND                  CREATED             STATUS             PORTS                               NAMES
+4e76998d2314   dk-ms-courses:v2     "java -jar app.jar"      About an hour ago   Up About an hour   0.0.0.0:8002->8002/tcp              dk-ms-courses
+152fff6b17b7   dk-ms-users:v2       "java -jar app.jar"      About an hour ago   Up About an hour   0.0.0.0:8001->8001/tcp              dk-ms-users
+b28f9c622dc4   postgres:14-alpine   "docker-entrypoint.s…"   2 hours ago         Up 2 hours         0.0.0.0:5433->5432/tcp              postgres-14
+c8f8710d2c2b   mysql:8              "docker-entrypoint.s…"   2 hours ago         Up 2 hours         33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+````
+
+Ahora eliminaremos no solo los contenedores de las bases de datos, sino también las de los microservicios:
+
+````bash
+$ docker container rm -f dk-ms-courses dk-ms-users postgres-14 myslq-8
+dk-ms-courses
+dk-ms-users
+postgres-14
+mysql-8
+
+$ docker container ls -a
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+````
+
+Creamos nuevamente todos los contenedores:
+
+````bash
+$ docker container run -d -p 3307:3306 --name mysql-8 --network spring-net -e MYSQL_ROOT_PASSWORD=magadiflo -e MYSQL_DATABASE=db_dk_ms_users mysql:8
+$ docker container run -d -p 5433:5432 --name postgres-14 --network spring-net -e POSTGRES_PASSWORD=magadiflo -e POSTGRES_DB=db_dk_ms_courses postgres:14-alpine
+$ docker container run -d -p 8001:8001 --rm --name dk-ms-users --network spring-net dk-ms-users:v2
+$ docker container run -d -p 8002:8002 --rm --name dk-ms-courses --network spring-net dk-ms-courses:v2
+````
+
+Listando todos los contenedores, nuevamente los tenemos levantados:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE                COMMAND                  CREATED         STATUS         PORTS                               NAMES
+89f41eda9e1e   dk-ms-courses:v2     "java -jar app.jar"      3 minutes ago   Up 3 minutes   0.0.0.0:8002->8002/tcp              dk-ms-courses
+fc4fe9c72779   postgres:14-alpine   "docker-entrypoint.s…"   4 minutes ago   Up 4 minutes   0.0.0.0:5433->5432/tcp              postgres-14
+6ad6e543218c   dk-ms-users:v2       "java -jar app.jar"      4 minutes ago   Up 4 minutes   0.0.0.0:8001->8001/tcp              dk-ms-users
+7071e97c1fe6   mysql:8              "docker-entrypoint.s…"   5 minutes ago   Up 5 minutes   33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+````
+
+Hacemos peticiones a los microservicios alojados en los contenedores:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[]
+````
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[]
+````
+
+**¡No están los datos registrados en la sección "Revisando microservicios dockerizados"!**
+
+**PROBLEMA**
+> Al eliminar los contenedores de las bases de datos, se eliminan también los datos que están almacenados dentro de
+> ellos.
+
