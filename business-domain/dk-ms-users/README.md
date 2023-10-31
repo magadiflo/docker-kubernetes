@@ -1641,3 +1641,83 @@ ejecutándose en el puerto externo `3307` del contenedor `mysql-8`. El resultado
 > Vamos a `Ajustes de conexión/Driver properties/allowPublicKeyRetrieval = true`.
 >
 > [StackOverflow](https://stackoverflow.com/questions/50379839/connection-java-mysql-public-key-retrieval-is-not-allowed)
+
+## Comunicación entre contenedores con BBDD Dockerizadas (MySQL)
+
+En esta sección debemos modificar el `application.yml` del `dk-ms-users` para poder comunicarnos con la base de
+datos de `MySQL` que ahora la tenemos contenerizada.
+
+````yaml
+# Other properties
+datasource:
+  url: jdbc:mysql://mysql-8:3306/db_dk_ms_users
+# Other properties
+````
+
+El cambio realizado en la propiedad anterior fue reemplazar el `host.docker.internal` por el nombre que le dimos al
+contenedor de MySQL con la bandera `--name mysql-8`, de esta forma, el contenedor de nuestro microservicio de usuarios
+podrá comunicarse con el contenedor de la base de datos de MySQL, siempre y cuando ambos estén en la misma red. En
+nuestro caso, haremos que nuestros contenedores estén en la misma red `spring-net`.
+
+Habiendo realizado la modificación en el código fuente del microservicio de `dk-ms-users` volvemos a generar la imagen y
+a partir de ella generamos el contenedor:
+
+````bash
+$ docker container run -d -p 8001:8001 --rm --name dk-ms-users --network spring-net dk-ms-users:v2
+152fff6b17b711b06b39e909a8140b8962bab869bc14e659ec8b2e43a16f7d71
+````
+
+Listamos los contenedores:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE                COMMAND                  CREATED              STATUS              PORTS                               NAMES
+152fff6b17b7   dk-ms-users:v2       "java -jar app.jar"      About a minute ago   Up About a minute   0.0.0.0:8001->8001/tcp              dk-ms-users
+b28f9c622dc4   postgres:14-alpine   "docker-entrypoint.s…"   30 minutes ago       Up 30 minutes       0.0.0.0:5433->5432/tcp              postgres-14
+c8f8710d2c2b   mysql:8              "docker-entrypoint.s…"   31 minutes ago       Up 31 minutes       33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+````
+
+Luego de tener nuestros 4 contenedores levantados, verificamos que estén en la misma red, para eso podemos usar el
+siguiente comando:
+
+````bash
+$ docker network inspect spring-net
+[
+    {
+        "Name": "spring-net",
+        ...
+        "ConfigOnly": false,
+        "Containers": {
+            "152fff6b17b711b06b39e909a8140b8962bab869bc14e659ec8b2e43a16f7d71": {
+                "Name": "dk-ms-users",
+                "EndpointID": "e0c40f333d210d9fd18b9536ebfa7c76983146b0e836bd199e4f6da1e4d33961",
+                "MacAddress": "02:42:ac:12:00:04",
+                "IPv4Address": "172.18.0.4/16",
+                "IPv6Address": ""
+            },
+            "4e76998d231467c76a9d2e9b56468f83a642569d38fec8aeffd6de24960cde7e": {
+                "Name": "dk-ms-courses",
+                "EndpointID": "1ed6f9e628ffda0b3d64e1c39580c9ab73f7e4c56469af57009f411a434cb2ee",
+                "MacAddress": "02:42:ac:12:00:05",
+                "IPv4Address": "172.18.0.5/16",
+                "IPv6Address": ""
+            },
+            "b28f9c622dc44fd088e9df62c869dcce48ee0468673ae204482e65a589b5cb31": {
+                "Name": "postgres-14",
+                "EndpointID": "2d68c0d0b54cb0771eba4861bf5a3f15f98a17f29377d77f07e92323f4b5f519",
+                "MacAddress": "02:42:ac:12:00:03",
+                "IPv4Address": "172.18.0.3/16",
+                "IPv6Address": ""
+            },
+            "c8f8710d2c2bee70c13c52d2871bd511bdf5a61b7e1e6609c752a0d58612e3b3": {
+                "Name": "mysql-8",
+                "EndpointID": "c83d7f7a029ee5a73f7e514bb87e20a389deaf7ff1dd8abf2660bf18eb54d872",
+                "MacAddress": "02:42:ac:12:00:02",
+                "IPv4Address": "172.18.0.2/16",
+                "IPv6Address": ""
+            }
+        },
+        ...
+    }
+]
+````

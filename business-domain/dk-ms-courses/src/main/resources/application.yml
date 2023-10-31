@@ -6,7 +6,7 @@ spring:
     name: dk-ms-courses
 
   datasource:
-    url: jdbc:postgresql://host.docker.internal:5432/db_dk_ms_courses
+    url: jdbc:postgresql://postgres-14:5432/db_dk_ms_courses
     username: postgres
     password: magadiflo
     driver-class-name: org.postgresql.Driver
