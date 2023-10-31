@@ -1580,3 +1580,64 @@ dk-ms-courses   v2        b579ec873861   3 minutes ago   385MB
 dk-ms-users     latest    583a7919c097   7 minutes ago   387MB
 dk-ms-users     v2        583a7919c097   7 minutes ago   387MB
 ````
+
+## Dockerizando MySQL
+
+Actualmente, estoy conectando nuestros contenedores del microservicio `dk-ms-users` hacía MySQL que está instalado en mi
+máquina local. Pero ahora, vamos a contenerizar `MySQL` para usarlo como un contenedor dentro de nuestra plataforma de
+`Docker`. Para eso, necesitamos bajar la `imagen` de MySQL, así que en nuestra terminal ejecutamos el siguiente comando.
+Por cierto, bajaré la versión `(tag) 8`:
+
+````bash
+$  docker pull mysql:8
+````
+
+Si listamos las imágenes, veremos que entre ellas está la imagen bajada de MySQL. Esta imagen por cierto, la bajamos
+de la plataforma [Docker Hub](https://hub.docker.com/)
+
+````bash 
+$ docker image ls
+REPOSITORY      TAG       IMAGE ID       CREATED       SIZE
+dk-ms-courses   latest    b579ec873861   6 hours ago   385MB
+dk-ms-courses   v2        b579ec873861   6 hours ago   385MB
+dk-ms-users     latest    583a7919c097   6 hours ago   387MB
+dk-ms-users     v2        583a7919c097   6 hours ago   387MB
+mysql           8         a3b6608898d6   6 days ago    596MB
+````
+
+A partir de la imagen de MySQL descargada en nuestra plataforma de docker, crearemos un contenedor:
+
+````bash
+$ docker container run -d -p 3307:3306 --name mysql-8 --network spring-net -e MYSQL_ROOT_PASSWORD=magadiflo -e MYSQL_DATABASE=db_dk_ms_users mysql:8
+abe9d3014495c0707a96420d3c1eee73e9921c9ba72c9bb3857abd0189524cde
+````
+
+**DONDE**
+
+- `-p 3307:3306`, el puerto externo estamos colocando en `3307`, ya que actualmente tenemos MySQL en nuestra pc local
+  que está corriendo en el puerto `3306`. El puerto interno lo dejamos tal cual `3306`, ya que eso trabaja al interno
+  del contenedor, mientras que el externo hace referencia a nuestra máquina local.
+- `--name mysql-8`, le damos un nombre al contenedor.
+- `--network spring-net`, lo agregamos a la red donde están los otros dos microservicios.
+- `-e (--env)`, nos permite establecer variables de entorno. Cada variable de entorno a definir, debe estar precedido
+  por la bandera `-e` o `--env`.
+
+Listando los contenedores:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE              COMMAND                  CREATED             STATUS             PORTS                               NAMES
+abe9d3014495   mysql:8            "docker-entrypoint.s…"   About an hour ago   Up About an hour   33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+040dd8b44572   dk-ms-courses:v2   "java -jar app.jar"      3 hours ago         Up 3 hours         0.0.0.0:8002->8002/tcp              dk-ms-courses
+c12fa66e43f3   dk-ms-users:v2     "java -jar app.jar"      3 hours ago         Up 3 hours         0.0.0.0:8001->8001/tcp              dk-ms-users
+````
+
+Podemos verificar si podemos conectarnos desde DBeaver instalada en nuestra pc local hacia MySql que ahora mismo está
+ejecutándose en el puerto externo `3307` del contenedor `mysql-8`. El resultado debe ser una conexión exitosa.
+
+**IMPORTANTE**
+> Si al conectarnos con DBeaver al contenedor de MySQL nos sale el siguiente error
+> `MySQL : Public Key Retrieval is not allowed` lo que debemos hacer es una configuración en el DBeaver.
+> Vamos a `Ajustes de conexión/Driver properties/allowPublicKeyRetrieval = true`.
+>
+> [StackOverflow](https://stackoverflow.com/questions/50379839/connection-java-mysql-public-key-retrieval-is-not-allowed)
