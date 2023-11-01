@@ -877,3 +877,117 @@ $ curl -v http://localhost:8002/api/v1/courses/1 | jq
 
 Listo, ahora ya podemos estar seguros de que los datos permanecerán almacenados así eliminemos los contenedores de bases
 de datos, esto gracias a la ayuda de los `volúmenes`.
+
+## Conectarse desde contenedor cliente de línea de comandos a MySQL/Postgres
+
+### Contenedor Utilitario MySQL
+
+Crearemos un contenedor utilitario que nos permitirá conectarnos mediante la línea de comandos a la base de datos de
+MySQL:
+
+````bash
+$ docker container run -it --rm --network spring-net mysql:8 bash
+bash-4.4# mysql -hmysql-8 -uroot -p
+Enter password:
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 48
+Server version: 8.2.0 MySQL Community Server - GPL
+
+Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> show databases
+    -> ;
++--------------------+
+| Database           |
++--------------------+
+| db_dk_ms_users     |
+| information_schema |
+| mysql              |
+| performance_schema |
+| sys                |
++--------------------+
+5 rows in set (0.06 sec)
+
+mysql> 
+````
+
+**DONDE**
+
+- `-it`, habilitar el terminal interactivo.
+- `--rm`, cuando se detenga este contenedor, se eliminará automáticamente.
+- `--network spring-net`, es importante definir la red, ya que el contenedor de MySQL está en esa red.
+- `mysql:8`, imagen a partir de la cual crearemos un contenedor al vuelo, un utilitario.
+- `bash` o `/bin/bash`, línea de comando que usaremos dentro del contenedor.
+
+Al ingresar a la línea de comando vemos que escribí lo siguiente:
+
+`mysql -hmysql-8 -uroot -p`, `mysql` corresponde con el cliente mysql. `mysql-8` contenedor al que nos queremos
+conectar. `-u` usuario y `-p` password.
+
+### Contenedor Utilitario PostgreSQL
+
+Crearemos un contenedor utilitario que nos permitirá conectarnos mediante la línea de comandos a la base de datos de
+PostgreSQL:
+
+````bash
+$ docker container run -it --rm --network spring-net postgres:14-alpine psql -h postgres-14 -U postgres
+Password for user postgres:
+psql (14.9)
+Type "help" for help.
+
+postgres=# \l
+                                    List of databases
+       Name       |  Owner   | Encoding |  Collate   |   Ctype    |   Access privileges
+------------------+----------+----------+------------+------------+-----------------------
+ db_dk_ms_courses | postgres | UTF8     | en_US.utf8 | en_US.utf8 |
+ postgres         | postgres | UTF8     | en_US.utf8 | en_US.utf8 |
+ template0        | postgres | UTF8     | en_US.utf8 | en_US.utf8 | =c/postgres          +
+                  |          |          |            |            | postgres=CTc/postgres
+ template1        | postgres | UTF8     | en_US.utf8 | en_US.utf8 | =c/postgres          +
+                  |          |          |            |            | postgres=CTc/postgres
+(4 rows)
+
+postgres=# \c db_dk_ms_courses
+You are now connected to database "db_dk_ms_courses" as user "postgres".
+db_dk_ms_courses=# \dt;
+            List of relations
+ Schema |     Name     | Type  |  Owner
+--------+--------------+-------+----------
+ public | course_users | table | postgres
+ public | courses      | table | postgres
+(2 rows)
+
+db_dk_ms_courses=# \d+ courses
+                                                               Table "public.courses"
+ Column |          Type          | Collation | Nullable |               Default               | Storage  | Compression | Stats target | Description
+--------+------------------------+-----------+----------+-------------------------------------+----------+-------------+--------------+-------------
+ id     | bigint                 |           | not null | nextval('courses_id_seq'::regclass) | plain    |             |              |
+ name   | character varying(255) |           |          |                                     | extended |             |              |
+Indexes:
+    "courses_pkey" PRIMARY KEY, btree (id)
+Referenced by:
+    TABLE "course_users" CONSTRAINT "fkcax8xujvganv6xl9ra0sgouem" FOREIGN KEY (course_id) REFERENCES courses(id)
+Access method: heap
+
+db_dk_ms_courses=# SELECT * FROM courses;
+ id |    name
+----+------------
+  1 | Docker
+  2 | Kubernetes
+  3 | Angular
+(3 rows)
+
+db_dk_ms_courses=#
+````
+
+**NOTA**
+> Como ambos contenedores los creamos con la bandera `--rm` se eliminarán apenas se detengan. Así que como conclusión,
+> estos contenedores solo nos sirven para hacer pruebas rápidas, como cuando necesitamos algún cliente para poder
+> conectarnos a la base de datos MySQL/PostgreSQL y ver su contenido.
+
