@@ -625,3 +625,255 @@ $ curl -v http://localhost:8002/api/v1/courses | jq
 > Al eliminar los contenedores de las bases de datos, se eliminan también los datos que están almacenados dentro de
 > ellos.
 
+## Docker Volumes: La solución al problema de persistencia de datos
+
+En esta sección trabajaremos con **volúmenes**, ya explicaré en qué consisten, pero antes eliminaremos todos los
+contenedores para empezar de cero y poder trabajar:
+
+````bash
+$ docker container rm -f dk-ms-courses dk-ms-users mysql-8 postgres-14
+dk-ms-courses
+dk-ms-users
+mysql-8
+postgres-14
+
+$ docker container ls -a
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+````
+
+**Trabajar con volúmenes nos permitirá configurar que los datos de las bases de datos se guarden fuera del contenedor**,
+por ejemplo, en nuestra máquina local, de esa forma si eliminamos el contenedor de las bases de datos, la información
+aún persistirá cuando volvamos a crear nuevos contenedores de las mismas bases de datos.
+
+### [Volúmenes (-v o --volume)](https://docs.docker.com/storage/volumes/)
+
+**Los volúmenes son el mecanismo preferido para la persistencia de los datos generados y utilizados por los contenedores
+Docker.** Mientras que los **bind mounts** dependen de la estructura de directorios y del sistema operativo de la
+máquina anfitriona, **los volúmenes son completamente gestionados por Docker**.
+
+Además, **los volúmenes son a menudo una mejor opción que la persistencia de datos en la capa de escritura de un
+contenedor**, porque **un volumen no aumenta el tamaño de los contenedores que lo utilizan**, y el contenido del volumen
+existe fuera del ciclo de vida de un contenedor determinado.
+
+`-v o --volume`: **Consta de tres campos**, separados por dos puntos `(:)`. Los campos deben estar en el orden correcto,
+y el significado de cada campo no es inmediatamente obvio.
+
+- En el caso de `volúmenes con nombre`, **el primer campo es el nombre del volumen**, y es único en una determinada
+  máquina. Para `volúmenes anónimos`, **el primer campo se omite.**
+- **El segundo campo** es la **ruta donde el archivo o directorio están montados en el contenedor.**
+- **El tercer campo es opcional**, y es una lista de opciones separadas por comas, como `ro`.
+
+### Creando contenedores de bases de datos con volumen
+
+Empezaremos creando el contenedor de MySQL:
+
+````bash
+$ docker container run -d -p 3307:3306 --name mysql-8 --network spring-net -e MYSQL_ROOT_PASSWORD=magadiflo -e MYSQL_DATABASE=db_dk_ms_users -v data-mysql:/var/lib/mysql --restart=always mysql:8
+795dac7fcc8de72fcb367207af09b1be337605145dfc87763b0b5d497f08beea
+````
+
+**DONDE**
+
+- `-v`, la bandera `-v` o `--volume` indica que se configurará un volumen.
+- `data-mysql` es el nombre que le daremos al volumen que estamos creando.
+- `/var/lib/mysql`, este es el directorio dentro del contenedor de MySQL donde se almacenan los datos de la base de
+  datos. Al usar esta opción de montaje de volumen, estás diciendo que deseas que los datos de MySQL se almacenen fuera
+  del contenedor en un volumen llamado `data-mysql`.
+- `--restart=always` lo colocamos de manera opcional. Lo que hace esta configuración es reiniciar el contenedor cada vez
+  que docker se detenga u ocurra algún problema o error, si eso sucede, este contenedor se reiniciará automáticamente.
+  Por ejemplo, cuando reiniciemos nuestra pc local se van a detener nuestros contenedores, pero cuando se inicie Docker
+  se van a volver a levantar de manera automática. Como dije, es opcional, porque fácilmente lo podemos levantar
+  manualmente con `docker start <container_name>`.
+
+La razón por la que se hace esto es para que los datos de MySQL sean persistentes, lo que significa que incluso si el
+contenedor se detiene o se elimina, los datos de la base de datos no se perderán. En lugar de almacenar los datos dentro
+del contenedor, se almacenan en un volumen externo que puede ser respaldado, copiado y restaurado fácilmente. Esto es
+útil en entornos de producción donde la pérdida de datos de la base de datos sería un problema importante.
+
+La configuración de montaje de volumen simplemente redirige la ubicación donde MySQL almacena sus datos, no duplica los
+datos.
+
+Aquí está el flujo básico:
+
+1. Cuando utilizas el contenedor de MySQL, los datos se almacenan inicialmente en el directorio `/var/lib/mysql` dentro
+   del contenedor.
+2. Sin embargo, debido al montaje de volumen `-v data-mysql:/var/lib/mysql`, esos datos no se almacenan en el sistema de
+   archivos del contenedor en sí, sino que se almacenan en el volumen `data-mysql`.
+3. La información se guarda una sola vez en el volumen. No hay duplicación de datos entre el contenedor y el volumen.
+4. El volumen `data-mysql` es persistente, lo que significa que los datos en él se mantendrán incluso si el contenedor
+   se detiene o se elimina.
+
+El volumen `data-mysql` se crea en el sistema de archivos del host en el que se ejecuta Docker, no dentro del contenedor
+en sí. Docker administra estos volúmenes en una ubicación específica en el sistema de archivos del host, que puede
+variar según tu sistema operativo y configuración. En sistemas `Linux`, por ejemplo, los volúmenes suelen estar en el
+directorio `/var/lib/docker/volumes`. En otros sistemas operativos,
+como `Windows o macOS`, `Docker Desktop gestiona la ubicación de los volúmenes` de manera diferente.
+
+Ahora, crearemos el contenedor de PostgreSQL:
+
+````bash
+$ docker container run -d -p 5433:5432 --name postgres-14 --network spring-net -e POSTGRES_PASSWORD=magadiflo -e POSTGRES_DB=db_dk_ms_courses -v data-postgres:/var/lib/postgresql/data --restart=always postgres:14-alpine
+67db7f2464abf0439ddc96b3d35c538ccb13a3f482867e7f62dd5f567a40c183
+````
+
+Listamos los dos contenedores de bases de datos creados:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE                COMMAND                  CREATED          STATUS          PORTS                               NAMES
+795dac7fcc8d   mysql:8              "docker-entrypoint.s…"   7 seconds ago    Up 5 seconds    33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+67db7f2464ab   postgres:14-alpine   "docker-entrypoint.s…"   45 seconds ago   Up 43 seconds   0.0.0.0:5433->5432/tcp              postgres-14
+````
+
+Podemos ver los volúmenes creados si listamos todos los volúmenes:
+
+````bash
+$ docker volume ls
+DRIVER    VOLUME NAME
+local     42a0a66edf9b44ace0b4afd15093693775ae65224b4a6f1ad9bbd526caac1ca8
+local     835dff164f596335497eac94a448fbd3760fb204131f13b06afb02c8a6e7274b
+local     4548e93f639bc54e07342cfd783dab2fa9a8a120ba58cd8f3ca187e438551302
+local     5875c2ae3923ef62ee137e612a1912a4fcf8d78d0cb69541f586bc8129bd042c
+local     849742d75f37588c2bb8f48917a13e0dedeaa0277c78bb13709ce78a0eae4e76
+local     b422c2733064096c62568cd7d2bc70ed39a6290d02c3f1ba481542f3a73a199b
+local     data-mysql
+local     data-postgres
+````
+
+### Creando contenedores de los microservicios
+
+Ahora que tenemos los dos contenedores de bases de datos ejecutándose, vamos a crear los dos microservicios:
+
+````bash
+$ docker container run -d -p 8001:8001 --rm --name dk-ms-users --network spring-net dk-ms-users:v2
+3ac7e8cd0fe7fb5e7bcfd6b809ae7a5f77edce4db191d42c134fafb76719220d
+
+$ docker container run -d -p 8002:8002 --rm --name dk-ms-courses --network spring-net dk-ms-courses:v2
+c3f7082715bad1ea476b8725bfbf2303a07537937222f22e75aa0ae4c4ba7b09
+````
+
+Verificamos que estén los 4 contenedores creados:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE                COMMAND                  CREATED          STATUS          PORTS                               NAMES
+c3f7082715ba   dk-ms-courses:v2     "java -jar app.jar"      5 seconds ago    Up 2 seconds    0.0.0.0:8002->8002/tcp              dk-ms-courses
+3ac7e8cd0fe7   dk-ms-users:v2       "java -jar app.jar"      15 seconds ago   Up 13 seconds   0.0.0.0:8001->8001/tcp              dk-ms-users
+795dac7fcc8d   mysql:8              "docker-entrypoint.s…"   4 minutes ago    Up 4 minutes    33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+67db7f2464ab   postgres:14-alpine   "docker-entrypoint.s…"   4 minutes ago    Up 4 minutes    0.0.0.0:5433->5432/tcp              postgres-14
+````
+
+### Registrando datos
+
+A continuación se muestra parte de los registros realizados:
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"Alison\", \"email\":\"alicon@gmail.com\", \"password\": \"12345\"}" http://localhost:8001/api/v1/users | jq
+
+>
+< HTTP/1.1 201
+< Location: http://localhost:8001/api/v1/users/2
+< Content-Type: application/json
+{
+  "id": 2,
+  "name": "Alison",
+  "email": "alicon@gmail.com",
+  "password": "12345"
+}
+````
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"Docker\"}" http://localhost:8002/api/v1/courses | jq
+
+>
+< HTTP/1.1 201
+< Location: http://localhost:8002/api/v1/courses/1
+< Content-Type: application/json
+{
+  "id": 1,
+  "name": "Docker",
+  "courseUsers": [],
+  "users": []
+}
+````
+
+### Comprobando persistencia de los datos luego de eliminar los contenedores de BD
+
+Ahora, eliminaremos los contenedores de bases de datos:
+
+````bash
+$ docker container rm -f mysql-8 postgres-14
+mysql-8
+postgres-14
+````
+
+Listamos los contenedores y vemos que solamente tenemos los de los microservicios:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE              COMMAND               CREATED          STATUS          PORTS                    NAMES
+c3f7082715ba   dk-ms-courses:v2   "java -jar app.jar"   13 minutes ago   Up 13 minutes   0.0.0.0:8002->8002/tcp   dk-ms-courses
+3ac7e8cd0fe7   dk-ms-users:v2     "java -jar app.jar"   13 minutes ago   Up 13 minutes   0.0.0.0:8001->8001/tcp   dk-ms-users
+````
+
+Volvemos a crear los contendores de las bases de datos:
+
+````bash
+$ docker container run -d -p 3307:3306 --name mysql-8 --network spring-net -e MYSQL_ROOT_PASSWORD=magadiflo -e MYSQL_DATABASE=db_dk_ms_users -v data-mysql:/var/lib/mysql --restart=always mysql:8
+dd97a1adcb0669495113771644c6eeab240f14f1080817bcdfa8442a83ac354
+
+$ docker container run -d -p 5433:5432 --name postgres-14 --network spring-net -e POSTGRES_PASSWORD=magadiflo -e POSTGRES_DB=db_dk_ms_courses -v data-postgres:/var/lib/postgresql/data --restart=always postgres:14-alpine
+8bdd9a35f2cb2c9e87ea5edf8308a780adccb41c067882f6c17107ac1807d3ac
+````
+
+Verificamos que tenemos todos los contenedores corriendo:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE                COMMAND                  CREATED          STATUS          PORTS                               NAMES
+8bdd9a35f2cb   postgres:14-alpine   "docker-entrypoint.s…"   9 seconds ago    Up 7 seconds    0.0.0.0:5433->5432/tcp              postgres-14
+dd97a1adcb06   mysql:8              "docker-entrypoint.s…"   32 seconds ago   Up 30 seconds   33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+c3f7082715ba   dk-ms-courses:v2     "java -jar app.jar"      14 minutes ago   Up 14 minutes   0.0.0.0:8002->8002/tcp              dk-ms-courses
+3ac7e8cd0fe7   dk-ms-users:v2       "java -jar app.jar"      14 minutes ago   Up 14 minutes   0.0.0.0:8001->8001/tcp              dk-ms-users
+````
+
+**Finalmente, verificamos si aún siguen los datos que registramos al inicio:**
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses/1 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+{
+  "id": 1,
+  "name": "Docker",
+  "courseUsers": [
+    {
+      "id": 1,
+      "userId": 4
+    },
+    {
+      "id": 2,
+      "userId": 1
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "name": "martin",
+      "email": "martin@gmail.com",
+      "password": "12345"
+    },
+    {
+      "id": 4,
+      "name": "Nophy",
+      "email": "nophy@gmail.com",
+      "password": "12345"
+    }
+  ]
+}
+````
+
+Listo, ahora ya podemos estar seguros de que los datos permanecerán almacenados así eliminemos los contenedores de bases
+de datos, esto gracias a la ayuda de los `volúmenes`.
