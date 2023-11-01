@@ -1121,7 +1121,7 @@ explicaré los cambios realizados:
 
   ````bash
   $ docker build -t dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
-  [+] Building 4.5s (11/11) FINISHED                                                                                                                                                        docker:default  => [internal] load build definition from Dockerfile                                                                                                                                                0.1s  => => transferring dockerfile: 444B                                                                                                                                                                0.0s  => [internal] load .dockerignore                                                                                                                                                                   0.2s  => => transferring context: 2B                                                                                                                                                                     0.0s  => [internal] load metadata for docker.io/library/openjdk:17-jdk-alpine                                                                                                                            2.9s  => [auth] library/openjdk:pull token for registry-1.docker.io                                                                                                                                      0.0s  => CACHED [1/6] FROM docker.io/library/openjdk:17-jdk-alpine@sha256:4b6abae565492dbe9e7a894137c966a7485154238902f2f25e9dbd9784383d81                                                               0.0s  => [internal] load build context                                                                                                                                                                   0.2s  => => transferring context: 144.22kB                                                                                                                                                               0.1s  => [2/6] WORKDIR /app/business-domain/dk-ms-users                                                                                                                                                  0.2s  => [3/6] COPY ./pom.xml /app                                                                                                                                                                       0.1s  => [4/6] COPY ./business-domain/pom.xml /app/business-domain                                                                                                                                       0.2s  => [5/6] COPY ./business-domain/dk-ms-users ./                                                                                                                                                     0.2s  => ERROR [6/6] RUN ./mvnw clean package -DskipTests                                                                                                                                                0.6s ------
+  [+] Building 4.5s (11/11) FINISHED
    > [6/6] RUN ./mvnw clean package -DskipTests:
   0.558 /bin/sh: ./mvnw: not found
   ------
@@ -1774,4 +1774,288 @@ $ curl -v http://localhost:8001/api/v1/users | jq
     "password": "12345"
   }
 ]
+````
+
+## Trabajando con variables de ambiente (ENV)
+
+Veremos un primer acercamiento al uso de las variables de ambiente en este microservicio. El ejemplo será, cambiar
+dinámicamente el puerto en la que correrá la aplicación al interior del contendor, de tal forma, cuando creemos un
+nuevo contenedor, podremos asignárle dinámicamente un puerto distinto.
+
+> ¡Ojo! solo es para probar el funcionamiento de las variables de entorno, al final dejaremos el puerto interno con el
+> mismo valor que hemos venido trabajando hasta ahora.
+
+### Definiendo variable de ambiente en el Dockerfile
+
+Lo primero que haremos será modificar el `application.yml` para utilizar la variable de ambiente `CONTAINER_PORT`:
+
+````yml
+server:
+  port: ${CONTAINER_PORT:8001}
+# properties
+````
+
+**DONDE**
+
+- `CONTAINER_PORT`, variable de ambiente.
+- `8001`, valor por defecto. Es decir, si la variable CONTAINER_PORT no viene definida, se tomará por defecto el 8001.
+
+Luego, en el `Dockerfile`, podemos definir la variable de ambiente utilizando la instrucción `ENV`:
+
+````dockerfile
+# Instrucciones del pimer stage
+
+# Instrucciones del segundo stage
+FROM openjdk:17-jdk-alpine
+WORKDIR /app
+RUN mkdir ./logs
+COPY --from=builder /app/business-domain/dk-ms-users/target/*.jar ./app.jar
+
+ENV CONTAINER_PORT=8000
+
+EXPOSE 8001
+CMD ["java", "-jar", "app.jar"]
+````
+
+**DONDE**  
+`ENV`, esta instrucción establece la variable de entorno `CONTAINER_PORT` al valor `8000`. Este valor estará en el
+entorno para todas las instrucciones posteriores en la etapa de construcción y puede ser reemplazado en línea.
+
+**NOTA**
+> La instrucción `EXPOSE` tiene hardcodeado el puerto a valor `8001`. Esta instrucción es solo para documentar, pero
+> también requerimos que sea dinámico. Eso lo haremos más adelante, ya que recordemos, la instrucción `EXPOSE` hace
+> referencia al puerto `externo` y lo que nosotros estamos cambiado, a modo de ejemplo, es el puerto `interno`, por eso
+> fue que definí el nombre de la variable de entorno `CONTAINER_PORT` para hacer referencia al puerto interno del
+> contenedor. Cuando lleguemos al punto de crear la variable de entorno para la instrucción `EXPOSE` se le colocará de
+> nombre `HOST_PORT`, para hacer referencia al puerto que desde el host local nos podremos conectar.
+
+### Probando variable de ambiente definida en el Dockerfile
+
+Como hemos realizado modificaciones al `Dockerfile` es necesario volver a ejecutar `docker build` para construir
+nuevamente la imagen:
+
+````bash
+$ docker build -t dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
+
+$ docker image ls
+REPOSITORY      TAG         IMAGE ID       CREATED          SIZE
+dk-ms-users     latest      424435057168   15 seconds ago   387MB
+...
+````
+
+Ya tenemos la imagen, ahora llega el momento de crear un contenedor:
+
+````bash
+$ docker container run -d -p 8001:8000 --rm --name dk-ms-users --network spring-net dk-ms-users
+b47571cd9d9eb16f0dc449a45585d77d22b44eb5a9a198af3fea119d4737ea95
+````
+
+**DONDE**
+
+- `-p 8001:8000`, el puerto externo sigue siendo `8001`, recordemos que usamos ese valor para poder acceder desde
+  nuestra máquina local al contendor. Por otro lado, el cambio que hemos realizado fue en el puerto interno `8000`.
+  Esto significa que al interior del contenedor ese puerto estará disponible para la aplicación que se esté ejecutando
+  dentro de él.
+
+**IMPORTANTE**
+> Es muy importante volver a recalcar que el puerto interno que se asignó al crear el contenedor anterior fue el `8000`.
+> Ahora, si el puerto interno que definimos fue el `8000`, por coherencia, el puerto que se le debe asignar a la
+> aplicación de Spring Boot debe ser el `8000` y ese valor es lo que precisamente asignamos a la variable de entorno
+> `CONTAINER_PORT` dentro del `Dockerfile` y a su vez estamos utilizando esa variable `CONTAINER_PORT` dentro de la
+> configuración del `application.yml`.
+
+El contenedor creado fue el siguiente:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE                COMMAND                  CREATED          STATUS          PORTS                               NAMES
+b47571cd9d9e   dk-ms-users          "java -jar app.jar"      11 minutes ago   Up 11 minutes   8001/tcp, 0.0.0.0:8001->8000/tcp    dk-ms-users
+8bdd9a35f2cb   postgres:14-alpine   "docker-entrypoint.s…"   19 hours ago     Up 3 hours      0.0.0.0:5433->5432/tcp              postgres-14
+dd97a1adcb06   mysql:8              "docker-entrypoint.s…"   19 hours ago     Up 3 hours      33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+````
+
+Comprobemos que nuestra aplicación de Spring Boot obtuvo el valor del puerto definido en la variable de
+entorno `CONTAINER_PORT=8000`:
+
+````bash
+$ docker container logs dk-ms-users
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.1.4)
+
+...
+2023-11-01T17:32:19.998Z  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8000 (http)
+2023-11-01T17:32:20.031Z  INFO 1 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2023-11-01T17:32:20.032Z  INFO 1 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.13]
+...
+2023-11-01T17:32:28.792Z  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8000 (http) with context path ''
+2023-11-01T17:32:28.829Z  INFO 1 --- [           main] c.m.d.b.d.u.app.DkMsUsersApplication     : Started DkMsUsersApplication in 15.058 seconds (process running for 16.356)
+````
+
+Ahora, comprobamos que la aplicación sigue funcionando con el puerto externo de siempre:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users/1 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "martin",
+  "email": "martin@gmail.com",
+  "password": "12345"
+}
+````
+
+### Sobreescribiendo variable de ambiente en línea de comando
+
+Al momento de correr un nuevo contenedor, podemos asignar en la misma línea de comando la variable de entorno que
+definimos en el `Dockerfile`, de esa forma estaremos sobreescribiendo dicha variable.
+
+Recordemos que la variable `CONTAINER_PORT` del `Dockerfile` tiene el valor de `8000`. Ahora, usando la línea de comando
+para correr un nuevo contenedor, sobreescribiremos el valor de dicha variable de entorno:
+
+````bash
+$ docker container run -d -p 8001:8090 -e CONTAINER_PORT=8090 --rm --name dk-ms-users --network spring-net dk-ms-users
+c64be83477480c02e1538f469ba18b37ae21b9f544dfc0bda67a6465bbfe21e5
+````
+
+**DONDE**
+
+- `-p 8001:8090`, el valor que le definimos al puerto interno de este nuevo contenedor es `8090`.
+- `-e` o `--env`, nos permite definir una variable de ambiente.
+- `CONTAINER_PORT=8090`, variable de ambiente definida en la línea de comandos. Esta variable sobreescribe a la variable
+  que definimos en el `Dockerfile`, si es que en ese archivo existe dicha variable. Caso contrario, simplemente estamos
+  creando la variable para que sea usada por quien la defina al interior del contenedor. En nuestro caso,
+  el `application.yml` en la configuración `server.port`.
+
+Listamos los contenedores:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE                COMMAND                  CREATED         STATUS         PORTS                               NAMES
+c64be8347748   dk-ms-users          "java -jar app.jar"      9 minutes ago   Up 9 minutes   8001/tcp, 0.0.0.0:8001->8090/tcp    dk-ms-users
+8bdd9a35f2cb   postgres:14-alpine   "docker-entrypoint.s…"   19 hours ago    Up 4 hours     0.0.0.0:5433->5432/tcp              postgres-14
+dd97a1adcb06   mysql:8              "docker-entrypoint.s…"   19 hours ago    Up 4 hours     33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+````
+
+Ahora, comprobemos que nuestra aplicación de Spring Boot obtuvo el valor del puerto definido en la variable de
+entorno `CONTAINER_PORT=8090` de la línea de comandos:
+
+````bash
+$ docker container logs dk-ms-users
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.1.4)
+
+...
+2023-11-01T17:53:38.684Z  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8090 (http)
+...
+2023-11-01T17:53:47.593Z  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8090 (http) with context path ''
+2023-11-01T17:53:47.630Z  INFO 1 --- [           main] c.m.d.b.d.u.app.DkMsUsersApplication     : Started DkMsUsersApplication in 15.585 seconds (process running for 16.935)
+````
+
+Ahora, comprobamos que la aplicación sigue funcionando con el puerto externo de siempre:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users/2 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 2,
+  "name": "Alison",
+  "email": "alicon@gmail.com",
+  "password": "12345"
+}
+````
+
+### Definiendo variable de ambiente en archivo de configuración .env
+
+Supongamos que tenemos muchas variables de ambiente y queremos utilizar la línea de comandos y en ella definir dichas
+variables. Resultaría muy improductivo hacerlo como en el apartado anterior, en vez de eso, podríamos usar
+un archivo `.env` donde definiríamos todas las variables de entorno a usar y simplemente en la línea de comando llamar
+a ese archivo.
+
+Creamos el archivo `.env` en la raíz del microservicio `dk-ms-users` y definimos nuestras variables de entorno. Para
+nuestro ejemplo, solo definimos una variable:
+
+````bash
+CONTAINER_PORT=8888
+````
+
+Ahora, al momento de correr un nuevo contenedor debemos llamar a este archivo con la instrucción `--env-file`:
+
+````bash
+$ docker container run -d -p 8001:8888 --env-file .\business-domain\dk-ms-users\.env --rm --name dk-ms-users --network spring-net dk-ms-users
+01b88306d4d1628faaae062fac9e716858067e2a8732e4f8e77aa4b0f10f5a34
+````
+
+**DONDE**
+
+- `--env-file`, instrucción que nos permite leer un archivo de variables de entorno.
+- `.\business-domain\dk-ms-users\.env`, ruta donde está ubicada el archivo `.env`.
+- `-p 8001:8888`, definimos para este ejemplo el valor del puerto interno a `8888`. Recordar que ese valor también
+  deberá ser definido en el `CONTAINER_PORT` del archivo `.env`.
+
+Verificamos que el contenedor esté en la lista de contenedores:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE                COMMAND                  CREATED         STATUS         PORTS                               NAMES
+01b88306d4d1   dk-ms-users          "java -jar app.jar"      2 minutes ago   Up 2 minutes   8001/tcp, 0.0.0.0:8001->8888/tcp    dk-ms-users
+8bdd9a35f2cb   postgres:14-alpine   "docker-entrypoint.s…"   19 hours ago    Up 4 hours     0.0.0.0:5433->5432/tcp              postgres-14
+dd97a1adcb06   mysql:8              "docker-entrypoint.s…"   19 hours ago    Up 4 hours     33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+````
+
+Ahora, comprobemos que nuestra aplicación de Spring Boot obtuvo el valor del puerto definido en la variable de
+entorno `CONTAINER_PORT=8888` del archivo `.env`:
+
+````bash
+$ docker container logs dk-ms-users
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.1.4)
+
+...
+2023-11-01T18:24:19.109Z  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8888 (http)
+...
+2023-11-01T18:24:27.795Z  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8888 (http) with context path ''
+2023-11-01T18:24:27.838Z  INFO 1 --- [           main] c.m.d.b.d.u.app.DkMsUsersApplication     : Started DkMsUsersApplication in 14.715 seconds (process running for 16.029)
+````
+
+Ahora, comprobamos que la aplicación sigue funcionando con el puerto externo de siempre:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users/3 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 3,
+  "name": "Tinkler",
+  "email": "tinkler@gmail.com",
+  "password": "12345"
+}
 ````

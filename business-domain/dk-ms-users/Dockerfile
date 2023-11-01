@@ -14,5 +14,6 @@ FROM openjdk:17-jdk-alpine
 WORKDIR /app
 RUN mkdir ./logs
 COPY --from=builder /app/business-domain/dk-ms-users/target/*.jar ./app.jar
+ENV CONTAINER_PORT=8001
 EXPOSE 8001
 CMD ["java", "-jar", "app.jar"]
