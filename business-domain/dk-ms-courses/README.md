@@ -1230,3 +1230,314 @@ public class CourseController {
 }
 ````
 
+---
+
+# Sección 9: Docker Networks: Comunicación entre contenedores
+
+---
+
+## Dockerizando microservicio cursos y configurando la red o network
+
+Hasta ahora este microservicio de cursos lo hemos estado trabajando sin dockerizar, así que ahora llega el momento de
+hacerlo. El primer cambio que haremos será modificar el `application.yml`:
+
+````yaml
+# other properties
+
+spring:
+  # other properties
+
+  datasource:
+    url: jdbc:postgresql://host.docker.internal:5432/db_dk_ms_courses
+    # other properties
+
+logging:
+  # other properties 
+  file:
+    name: /app/logs/dk-ms-courses.log
+````
+
+Como nuestro microservicio de cursos estará dockerizada, necesitamos que el contenedor apunte hacia nuestra máquina
+local, que es donde tenemos instalada `PostgreSQL`. Para eso cambiamos el `localhost` por `host.docker.internal`.
+También agregamos la ruta del login donde guardar los registros, pero eso es solo por que esté igual que el otro
+microservicio.
+
+Otra modificación que tenemos que hacer es en el archivo `IUserFeignClient`:
+
+````java
+
+@FeignClient(name = "dk-ms-users", url = "dk-ms-users:8001", path = "/api/v1/users")
+public interface IUserFeignClient {
+    // code
+}
+````
+
+**DONDE**
+
+- `name = "dk-ms-users"`, corresponde al nombre del microservicio que vamos a consumir.
+- `url = "dk-ms-users:8001"`, corresponde al nombre que le daremos al contenedor cuando creemos uno con la
+  bandera `--name`. El puerto seguirá siendo el mismo.
+
+Finalmente, copiaremos el `Dockerfile` del microservicio de usuarios y le realizaremos algunos cambios para nuestro
+microservicio de cursos:
+
+````Dockerfile
+FROM openjdk:17-jdk-alpine AS builder
+WORKDIR /app/business-domain/dk-ms-courses
+COPY ./pom.xml /app
+COPY ./business-domain/pom.xml /app/business-domain
+COPY ./business-domain/dk-ms-courses/pom.xml ./
+COPY ./business-domain/dk-ms-courses/mvnw ./
+COPY ./business-domain/dk-ms-courses/.mvn ./.mvn
+RUN sed -i -e 's/\r$//' ./mvnw
+RUN ./mvnw dependency:go-offline
+COPY ./business-domain/dk-ms-courses/src ./src
+RUN ./mvnw clean package -DskipTests
+
+FROM openjdk:17-jdk-alpine
+WORKDIR /app
+RUN mkdir ./logs
+COPY --from=builder /app/business-domain/dk-ms-courses/target/*.jar ./app.jar
+EXPOSE 8002
+CMD ["java", "-jar", "app.jar"]
+````
+
+Ahora que ya tenemos lo necesario, crearemos la imagen del microservicio de cursos:
+
+````bash
+$ docker build -t dk-ms-courses:v2 . -f .\business-domain\dk-ms-courses\Dockerfile
+[+] Building 1.8s (20/20) FINISHED
+
+$ docker image ls
+REPOSITORY      TAG       IMAGE ID       CREATED         SIZE
+dk-ms-courses   latest    b579ec873861   3 minutes ago   385MB
+dk-ms-courses   v2        b579ec873861   3 minutes ago   385MB
+dk-ms-users     latest    583a7919c097   7 minutes ago   387MB
+dk-ms-users     v2        583a7919c097   7 minutes ago   387MB
+````
+
+## Dockerizando PostgreSQL
+
+Actualmente, estoy conectando nuestros contenedores del microservicio `dk-ms-courses` hacía PostgreSQL que está
+instalado en mi máquina local. Pero ahora, vamos a contenerizar `PostgreSQL` para usarlo como un contenedor dentro de
+nuestra plataforma de `Docker`.
+
+Cuando contenerizamos la base de datos de MySQL, lo primero que hicimos fue descargar la imagen con el
+comando `docker pull`, pero en esta ocasión, con `PostgreSQL` crearemos directamente el contenedor. Docker al ver que
+no lo tenemos descargado, nos mostrará el mensaje `Unable to find image 'postgres:14-alpine' locally` y lo empezará
+a descargar por nosotros, posteriormente creará nuestro contenedor.
+
+````bash
+$ docker container run -d -p 5433:5432 --name postgres-14 --network spring-net -e POSTGRES_PASSWORD=magadiflo -e POSTGRES_DB=db_dk_ms_courses postgres:14-alpine
+Unable to find image 'postgres:14-alpine' locally
+14-alpine: Pulling from library/postgres
+96526aa774ef: Pull complete
+...
+1c5e4ba76017: Pull complete
+Digest: sha256:874f566dd512d79cf74f59754833e869ae76ece96716d153b0fa3e64aec88d92
+Status: Downloaded newer image for postgres:14-alpine
+a28d341a25c5986ae23781ec711c7e814c6989c541c868694b85d714ed1a5a8c
+````
+
+**DONDE**
+
+- `-p 5433:5432`, el puerto externo estamos colocando en `5433`, ya que actualmente tenemos PostgreSQL en nuestra pc
+  local que está corriendo en el puerto `5432`. El puerto interno lo dejamos tal cual `5432`, ya que eso trabaja al
+  interno del contenedor, mientras que el externo hace referencia a nuestra máquina local.
+- `--name postgres-14`, le damos un nombre al contenedor.
+- `--network spring-net`, lo agregamos a la red donde están los otros dos microservicios.
+- `-e (--env)`, nos permite establecer variables de entorno. Cada variable de entorno a definir, debe estar precedido
+  por la bandera `-e` o `--env`. Notar que, como no estamos especificando un usuario, la imagen de PostgreSQL usará por
+  defecto el usuario `postgres`.
+
+Listando los contenedores:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE                COMMAND                  CREATED         STATUS                       PORTS                               NAMES
+a28d341a25c5   postgres:14-alpine   "docker-entrypoint.s…"   8 minutes ago   Up 8 minutes                 0.0.0.0:5433->5432/tcp              postgres-14
+abe9d3014495   mysql:8              "docker-entrypoint.s…"   15 hours ago    Exited (255) 9 minutes ago   33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+````
+
+Podemos verificar si podemos conectarnos desde DBeaver instalada en nuestra pc local hacia PostgreSQL que ahora mismo
+está ejecutándose en el puerto externo `5433` del contenedor `postgres-14`. El resultado debe ser una conexión exitosa.
+
+## Comunicación entre contenedores con BBDD Dockerizadas (PostgreSQL)
+
+En esta sección debemos modificar el `application.yml` del `dk-ms-courses` para poder comunicarnos con la base de
+datos de `PostgreSQL` que ahora la tenemos contenerizada.
+
+````yaml
+# Other properties
+datasource:
+  url: jdbc:postgresql://postgres-14:5432/db_dk_ms_courses
+# Other properties
+````
+
+El cambio realizado en la propiedad anterior fue reemplazar el `host.docker.internal` por el nombre que le dimos al
+contenedor de PostgreSQL con la bandera `--name postgres-14`, de esta forma, el contenedor de nuestro microservicio de
+cursos
+podrá comunicarse con el contenedor de la base de datos de PostgreSQL, siempre y cuando ambos estén en la misma red. En
+nuestro caso, haremos que nuestros contenedores estén en la misma red `spring-net`.
+
+Habiendo realizado la modificación en el código fuente del microservicio de `dk-ms-courses` volvemos a generar la imagen
+y
+a partir de ella generamos el contenedor:
+
+````bash
+$ docker container run -d -p 8002:8002 --rm --name dk-ms-courses --network spring-net dk-ms-courses:v2
+4e76998d231467c76a9d2e9b56468f83a642569d38fec8aeffd6de24960cde7e
+````
+
+Listamos los contenedores:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE                COMMAND                  CREATED          STATUS          PORTS                               NAMES
+4e76998d2314   dk-ms-courses:v2     "java -jar app.jar"      21 seconds ago   Up 19 seconds   0.0.0.0:8002->8002/tcp              dk-ms-courses
+152fff6b17b7   dk-ms-users:v2       "java -jar app.jar"      7 minutes ago    Up 7 minutes    0.0.0.0:8001->8001/tcp              dk-ms-users
+b28f9c622dc4   postgres:14-alpine   "docker-entrypoint.s…"   36 minutes ago   Up 35 minutes   0.0.0.0:5433->5432/tcp              postgres-14
+c8f8710d2c2b   mysql:8              "docker-entrypoint.s…"   37 minutes ago   Up 36 minutes   33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+````
+
+Luego de tener nuestros 4 contenedores levantados, verificamos que estén en la misma red, para eso podemos usar el
+siguiente comando:
+
+````bash
+$ docker network inspect spring-net
+[
+    {
+        "Name": "spring-net",
+        ...
+        "ConfigOnly": false,
+        "Containers": {
+            "152fff6b17b711b06b39e909a8140b8962bab869bc14e659ec8b2e43a16f7d71": {
+                "Name": "dk-ms-users",
+                "EndpointID": "e0c40f333d210d9fd18b9536ebfa7c76983146b0e836bd199e4f6da1e4d33961",
+                "MacAddress": "02:42:ac:12:00:04",
+                "IPv4Address": "172.18.0.4/16",
+                "IPv6Address": ""
+            },
+            "4e76998d231467c76a9d2e9b56468f83a642569d38fec8aeffd6de24960cde7e": {
+                "Name": "dk-ms-courses",
+                "EndpointID": "1ed6f9e628ffda0b3d64e1c39580c9ab73f7e4c56469af57009f411a434cb2ee",
+                "MacAddress": "02:42:ac:12:00:05",
+                "IPv4Address": "172.18.0.5/16",
+                "IPv6Address": ""
+            },
+            "b28f9c622dc44fd088e9df62c869dcce48ee0468673ae204482e65a589b5cb31": {
+                "Name": "postgres-14",
+                "EndpointID": "2d68c0d0b54cb0771eba4861bf5a3f15f98a17f29377d77f07e92323f4b5f519",
+                "MacAddress": "02:42:ac:12:00:03",
+                "IPv4Address": "172.18.0.3/16",
+                "IPv6Address": ""
+            },
+            "c8f8710d2c2bee70c13c52d2871bd511bdf5a61b7e1e6609c752a0d58612e3b3": {
+                "Name": "mysql-8",
+                "EndpointID": "c83d7f7a029ee5a73f7e514bb87e20a389deaf7ff1dd8abf2660bf18eb54d872",
+                "MacAddress": "02:42:ac:12:00:02",
+                "IPv4Address": "172.18.0.2/16",
+                "IPv6Address": ""
+            }
+        },
+        ...
+    }
+]
+````
+
+## Revisando microservicios dockerizados
+
+Ahora que tenemos nuestras aplicaciones dockerizadas así como las bases de datos, llega el momento de realizar las
+peticiones para comprobar si funcionan correctamente.
+
+Guardamos un curso utilizando nuestro microservicio `dk-ms-courses` y la base de datos de `PostreSQL`, ambos
+dockerizados:
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"Docker\"}" http://localhost:8002/api/v1/courses | jq
+
+>
+< HTTP/1.1 201
+< Location: http://localhost:8002/api/v1/courses/1
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "Docker",
+  "courseUsers": [],
+  "users": []
+}
+````
+
+Creamos un nuevo usuario y lo asignamos al curso con id = 1:
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"Alicia\", \"email\": \"alicia@gmail.com\", \"password\": \"12345\"}" http://localhost:8002/api/v1/courses/create-user-and-assign-to-course/1 | jq
+
+>
+< HTTP/1.1 201
+< Location: http://localhost:8002/api/v1/courses/create-user-and-assign-to-course/1/4
+< Content-Type: application/json
+<
+{
+  "id": 4,
+  "name": "Alicia",
+  "email": "alicia@gmail.com",
+  "password": "12345"
+}
+````
+
+Asignando un usuario existente al curso con id = 1:
+
+````bash
+$ curl -v -X PUT -H "Content-Type: application/json" -d "{\"id\": 1, \"name\": \"martin\", \"email\": \"martin@gmail.com\", \"password\": \"12345\"}" http://localhost:8002/api/v1/courses/assign-user-to-course/1 | jq
+
+} [77 bytes data]
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "martin",
+  "email": "martin@gmail.com",
+  "password": "12345"
+}
+````
+
+Vemos el detalle del curso con id = 1, nos traerá la información completa de los usuarios que están en dicho curso:
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses/1 | jq
+
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "Docker",
+  "courseUsers": [
+    {
+      "id": 1,
+      "userId": 4
+    },
+    {
+      "id": 2,
+      "userId": 1
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "name": "martin",
+      "email": "martin@gmail.com",
+      "password": "12345"
+    },
+    {
+      "id": 4,
+      "name": "Alicia",
+      "email": "alicia@gmail.com",
+      "password": "12345"
+    }
+  ]
+}
+````

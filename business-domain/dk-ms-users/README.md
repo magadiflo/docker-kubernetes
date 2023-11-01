@@ -1528,3 +1528,250 @@ CMD ["java", "-jar", "app.jar"]
 Como observamos, en la segunda etapa de la construcción de la imagen estamos creando el directorio `/logs` con la
 instrucción: `RUN mkdir ./logs`. Recordar que el `./` corresponden al `WORKDIR`, por lo que el directorio creado
 finalmente será `/app/logs`.
+
+---
+
+# Sección 9: Docker Networks: Comunicación entre contenedores
+
+---
+
+## Dockerizando microservicio cursos y configurando la red o network
+
+La mayor parte del trabajo realizado en esta sección es en el microservicio `dk-ms-courses`, pero aquí en
+el `dk-ms-users` también requerimos hacer ciertos cambios para establecer la comunicación con el otro microservicio.
+
+Los cambios realizados en este microservicio `dk-ms-users` serán en la interfaz del cliente feign `ICourseFeignClient`:
+
+````java
+
+@FeignClient(name = "dk-ms-courses", url = "dk-ms-courses:8002", path = "/api/v1/courses")
+public interface ICourseFeignClient {
+    /* code */
+}
+````
+
+Recordemos que antes del cambio realizado, el valor del url era `url = "host.docker.internal:8002"`, donde estábamos
+usando un dominio especial de docker llamado `host.docker.internal`, que nos permitía comunicarnos **desde adentro del
+contenedor hacia afuera, hacia nuestra máquina local**, donde precisamente estába corriendo en nuestro IDE de
+IntelliJ IDEA la aplicación del microservicio `dk-ms-courses`. Es decir, nuestra aplicación `dk-ms-users` dockerizada
+estába comunicándose con la aplicación `dk-ms-courses` no deckerizada.
+
+Ahora, llega el momento de dockerizar la aplicación de `dk-ms-courses` y nuestra aplicación dockerizada `dk-ms-users`
+debe apuntar a esa aplicación que ahora estará dockerizada, es por esa razón que cambiamos el `host.docker.internal` por
+el nombre del contenedor al que apuntará, es decir, cuando creemos un contenedor del microservicio de cursos, debemos
+asignarle un nombre con `--name` llamado `dk-ms-courses` y es ese nombre que hace referencia en la `url`.
+
+**En resumen:**
+
+- `name = "dk-ms-courses"`, hace referencia al nombre del microservicio que consumiremos. El nombre está definido en el
+  microservicio a consumir, en su archivo application.yml
+- `url = "dk-ms-courses:8002"`, hace referencia al nombre del contenedor que le daremos cuando se cree con la bandera
+  `--name`. El puerto seguirá siendo el mismo.
+
+Como hemos realizado modificaciones a este microservicio, debemos volver a generar su imagen para tener los cambios:
+
+````bash
+$ docker build -t dk-ms-users:v2 . -f .\business-domain\dk-ms-users\Dockerfile
+
+$ docker image ls
+REPOSITORY      TAG       IMAGE ID       CREATED         SIZE
+dk-ms-courses   latest    b579ec873861   3 minutes ago   385MB
+dk-ms-courses   v2        b579ec873861   3 minutes ago   385MB
+dk-ms-users     latest    583a7919c097   7 minutes ago   387MB
+dk-ms-users     v2        583a7919c097   7 minutes ago   387MB
+````
+
+## Dockerizando MySQL
+
+Actualmente, estoy conectando nuestros contenedores del microservicio `dk-ms-users` hacía MySQL que está instalado en mi
+máquina local. Pero ahora, vamos a contenerizar `MySQL` para usarlo como un contenedor dentro de nuestra plataforma de
+`Docker`. Para eso, necesitamos bajar la `imagen` de MySQL, así que en nuestra terminal ejecutamos el siguiente comando.
+Por cierto, bajaré la versión `(tag) 8`:
+
+````bash
+$  docker pull mysql:8
+````
+
+Si listamos las imágenes, veremos que entre ellas está la imagen bajada de MySQL. Esta imagen por cierto, la bajamos
+de la plataforma [Docker Hub](https://hub.docker.com/)
+
+````bash 
+$ docker image ls
+REPOSITORY      TAG       IMAGE ID       CREATED       SIZE
+dk-ms-courses   latest    b579ec873861   6 hours ago   385MB
+dk-ms-courses   v2        b579ec873861   6 hours ago   385MB
+dk-ms-users     latest    583a7919c097   6 hours ago   387MB
+dk-ms-users     v2        583a7919c097   6 hours ago   387MB
+mysql           8         a3b6608898d6   6 days ago    596MB
+````
+
+A partir de la imagen de MySQL descargada en nuestra plataforma de docker, crearemos un contenedor:
+
+````bash
+$ docker container run -d -p 3307:3306 --name mysql-8 --network spring-net -e MYSQL_ROOT_PASSWORD=magadiflo -e MYSQL_DATABASE=db_dk_ms_users mysql:8
+abe9d3014495c0707a96420d3c1eee73e9921c9ba72c9bb3857abd0189524cde
+````
+
+**DONDE**
+
+- `-p 3307:3306`, el puerto externo estamos colocando en `3307`, ya que actualmente tenemos MySQL en nuestra pc local
+  que está corriendo en el puerto `3306`. El puerto interno lo dejamos tal cual `3306`, ya que eso trabaja al interno
+  del contenedor, mientras que el externo hace referencia a nuestra máquina local.
+- `--name mysql-8`, le damos un nombre al contenedor.
+- `--network spring-net`, lo agregamos a la red donde están los otros dos microservicios.
+- `-e (--env)`, nos permite establecer variables de entorno. Cada variable de entorno a definir, debe estar precedido
+  por la bandera `-e` o `--env`.
+
+Listando los contenedores:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE              COMMAND                  CREATED             STATUS             PORTS                               NAMES
+abe9d3014495   mysql:8            "docker-entrypoint.s…"   About an hour ago   Up About an hour   33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+040dd8b44572   dk-ms-courses:v2   "java -jar app.jar"      3 hours ago         Up 3 hours         0.0.0.0:8002->8002/tcp              dk-ms-courses
+c12fa66e43f3   dk-ms-users:v2     "java -jar app.jar"      3 hours ago         Up 3 hours         0.0.0.0:8001->8001/tcp              dk-ms-users
+````
+
+Podemos verificar si podemos conectarnos desde DBeaver instalada en nuestra pc local hacia MySql que ahora mismo está
+ejecutándose en el puerto externo `3307` del contenedor `mysql-8`. El resultado debe ser una conexión exitosa.
+
+**IMPORTANTE**
+> Si al conectarnos con DBeaver al contenedor de MySQL nos sale el siguiente error
+> `MySQL : Public Key Retrieval is not allowed` lo que debemos hacer es una configuración en el DBeaver.
+> Vamos a `Ajustes de conexión/Driver properties/allowPublicKeyRetrieval = true`.
+>
+> [StackOverflow](https://stackoverflow.com/questions/50379839/connection-java-mysql-public-key-retrieval-is-not-allowed)
+
+## Comunicación entre contenedores con BBDD Dockerizadas (MySQL)
+
+En esta sección debemos modificar el `application.yml` del `dk-ms-users` para poder comunicarnos con la base de
+datos de `MySQL` que ahora la tenemos contenerizada.
+
+````yaml
+# Other properties
+datasource:
+  url: jdbc:mysql://mysql-8:3306/db_dk_ms_users
+# Other properties
+````
+
+El cambio realizado en la propiedad anterior fue reemplazar el `host.docker.internal` por el nombre que le dimos al
+contenedor de MySQL con la bandera `--name mysql-8`, de esta forma, el contenedor de nuestro microservicio de usuarios
+podrá comunicarse con el contenedor de la base de datos de MySQL, siempre y cuando ambos estén en la misma red. En
+nuestro caso, haremos que nuestros contenedores estén en la misma red `spring-net`.
+
+Habiendo realizado la modificación en el código fuente del microservicio de `dk-ms-users` volvemos a generar la imagen y
+a partir de ella generamos el contenedor:
+
+````bash
+$ docker container run -d -p 8001:8001 --rm --name dk-ms-users --network spring-net dk-ms-users:v2
+152fff6b17b711b06b39e909a8140b8962bab869bc14e659ec8b2e43a16f7d71
+````
+
+Listamos los contenedores:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE                COMMAND                  CREATED              STATUS              PORTS                               NAMES
+152fff6b17b7   dk-ms-users:v2       "java -jar app.jar"      About a minute ago   Up About a minute   0.0.0.0:8001->8001/tcp              dk-ms-users
+b28f9c622dc4   postgres:14-alpine   "docker-entrypoint.s…"   30 minutes ago       Up 30 minutes       0.0.0.0:5433->5432/tcp              postgres-14
+c8f8710d2c2b   mysql:8              "docker-entrypoint.s…"   31 minutes ago       Up 31 minutes       33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+````
+
+Luego de tener nuestros 4 contenedores levantados, verificamos que estén en la misma red, para eso podemos usar el
+siguiente comando:
+
+````bash
+$ docker network inspect spring-net
+[
+    {
+        "Name": "spring-net",
+        ...
+        "ConfigOnly": false,
+        "Containers": {
+            "152fff6b17b711b06b39e909a8140b8962bab869bc14e659ec8b2e43a16f7d71": {
+                "Name": "dk-ms-users",
+                "EndpointID": "e0c40f333d210d9fd18b9536ebfa7c76983146b0e836bd199e4f6da1e4d33961",
+                "MacAddress": "02:42:ac:12:00:04",
+                "IPv4Address": "172.18.0.4/16",
+                "IPv6Address": ""
+            },
+            "4e76998d231467c76a9d2e9b56468f83a642569d38fec8aeffd6de24960cde7e": {
+                "Name": "dk-ms-courses",
+                "EndpointID": "1ed6f9e628ffda0b3d64e1c39580c9ab73f7e4c56469af57009f411a434cb2ee",
+                "MacAddress": "02:42:ac:12:00:05",
+                "IPv4Address": "172.18.0.5/16",
+                "IPv6Address": ""
+            },
+            "b28f9c622dc44fd088e9df62c869dcce48ee0468673ae204482e65a589b5cb31": {
+                "Name": "postgres-14",
+                "EndpointID": "2d68c0d0b54cb0771eba4861bf5a3f15f98a17f29377d77f07e92323f4b5f519",
+                "MacAddress": "02:42:ac:12:00:03",
+                "IPv4Address": "172.18.0.3/16",
+                "IPv6Address": ""
+            },
+            "c8f8710d2c2bee70c13c52d2871bd511bdf5a61b7e1e6609c752a0d58612e3b3": {
+                "Name": "mysql-8",
+                "EndpointID": "c83d7f7a029ee5a73f7e514bb87e20a389deaf7ff1dd8abf2660bf18eb54d872",
+                "MacAddress": "02:42:ac:12:00:02",
+                "IPv4Address": "172.18.0.2/16",
+                "IPv6Address": ""
+            }
+        },
+        ...
+    }
+]
+````
+
+## Revisando microservicios dockerizados
+
+Ahora que tenemos nuestras aplicaciones dockerizadas así como las bases de datos, llega el momento de realizar las
+peticiones para comprobar si funcionan correctamente.
+
+Guardamos un usuario utilizando nuestro microservicio `dk-ms-users` y la base de datos de `MySQL`, ambos dockerizados:
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"martin\", \"email\":\"martin@gmail.com\", \"password\": \"12345\"}" http://localhost:8001/api/v1/users | jq
+
+>
+< HTTP/1.1 201
+< Location: http://localhost:8001/api/v1/users/1
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "martin",
+  "email": "martin@gmail.com",
+  "password": "12345"
+}
+````
+
+Agregamos nuevos usuarios y los listamos:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[
+  {
+    "id": 1,
+    "name": "martin",
+    "email": "martin@gmail.com",
+    "password": "12345"
+  },
+  {
+    "id": 2,
+    "name": "Alison",
+    "email": "alison@gmail.com",
+    "password": "12345"
+  },
+  {
+    "id": 3,
+    "name": "Tinkler",
+    "email": "tinkler@gmail.com",
+    "password": "12345"
+  }
+]
+````

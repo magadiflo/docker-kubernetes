@@ -6,7 +6,7 @@ spring:
     name: dk-ms-users
 
   datasource:
-    url: jdbc:mysql://host.docker.internal:3306/db_dk_ms_users
+    url: jdbc:mysql://mysql-8:3306/db_dk_ms_users
     username: root
     password: magadiflo
     driver-class-name: com.mysql.cj.jdbc.Driver

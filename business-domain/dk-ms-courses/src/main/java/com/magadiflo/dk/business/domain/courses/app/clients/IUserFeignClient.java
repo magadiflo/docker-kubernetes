@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@FeignClient(name = "dk-ms-users", url = "localhost:8001", path = "/api/v1/users")
+@FeignClient(name = "dk-ms-users", url = "dk-ms-users:8001", path = "/api/v1/users")
 public interface IUserFeignClient {
     @GetMapping(path = "/{id}")
     User getUser(@PathVariable Long id);
