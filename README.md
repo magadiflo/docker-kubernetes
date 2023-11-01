@@ -991,3 +991,48 @@ db_dk_ms_courses=#
 > estos contenedores solo nos sirven para hacer pruebas rápidas, como cuando necesitamos algún cliente para poder
 > conectarnos a la base de datos MySQL/PostgreSQL y ver su contenido.
 
+---
+
+# Sección 10: Docker: Arguments y Environment Variables
+
+---
+
+## [Introducción](https://vsupalov.com/docker-arg-env-variable-guide/)
+
+Al utilizar Docker, distinguimos entre dos tipos diferentes de variables: `ARG y ENV`. Se diferencian en el momento del
+ciclo de vida de un contenedor-imagen en el que los valores están disponibles.
+
+He aquí un resumen simplificado de las disponibilidades de ARG y ENV. Comenzando con la construcción de una imagen
+Docker desde un Dockerfile, hasta que un contenedor se ejecuta. **Los valores** `ARG` **no son utilizables desde dentro
+de los contenedores en ejecución.**
+
+![12.arg-env](./assets/12.arg-env.png)
+
+### ARG (build time)
+
+Las variables definidas a través de `ARG` también se conocen como variables en tiempo de compilación. **Solo están
+disponibles desde el momento en que son 'anunciadas' en el Dockerfile con una instrucción ARG en el Dockerfile.**
+
+**Los contenedores** en ejecución **no pueden acceder a los valores de las variables ARG.**  Así que cualquier cosa que
+ejecute a través de instrucciones `CMD y ENTRYPOINT` no verá esos valores por defecto.
+
+**El beneficio de ARG es, que Docker esperará obtener valores para esas variables.** Al menos, si usted no especifica un
+valor por defecto. **Si esos valores no se proporcionan al ejecutar el comando de compilación, habrá un mensaje de
+error.** Aquí hay un ejemplo donde Docker se queja durante la construcción:
+
+````bash
+# no default value is specified!
+ARG some_value
+````
+
+### ENV (build time and run time)
+
+Las variables ENV están disponibles tanto durante la construcción como para el futuro contenedor en ejecución. **En el
+Dockerfile, son utilizables tan pronto como se introducen con una instrucción ENV.**
+
+A diferencia de ARG, **los valores ENV son accesibles por los contenedores iniciados desde la imagen final.** Los
+valores ENV pueden ser anulados al iniciar un contenedor.
+
+A continuación se muestra el resumen entre ARG vs ENV:
+
+![11.arguments-environment](./assets/11.arguments-environment.png)
