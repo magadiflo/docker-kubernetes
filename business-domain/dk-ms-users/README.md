@@ -1914,10 +1914,16 @@ $ curl -v http://localhost:8001/api/v1/users/1 | jq
 }
 ````
 
-### Sobreescribiendo variable de ambiente en línea de comando
+### Sobreescribiendo variable de ambiente (ENV) a través de la línea de comando
 
 Al momento de correr un nuevo contenedor, podemos asignar en la misma línea de comando la variable de entorno que
 definimos en el `Dockerfile`, de esa forma estaremos sobreescribiendo dicha variable.
+
+**NOTA**
+> La variable de ambiente que definamos a través de la línea de comandos, no necesariamente tiene que estar definida
+> en el `Dockerfile`, es decir, a través de la línea de comandos podemos definir variables de ambiente, y si existen
+> en el `Dockerfile`, obviamente se sobreescribirán, en caso de que no existan, simplemente estarán disponibles en el
+> entorno de ejecución de dicho contenedor, por lo que, podrán ser accedidos por ejemplo, desde el `application.yml`.
 
 Recordemos que la variable `CONTAINER_PORT` del `Dockerfile` tiene el valor de `8000`. Ahora, usando la línea de comando
 para correr un nuevo contenedor, sobreescribiremos el valor de dicha variable de entorno:
@@ -2056,6 +2062,205 @@ $ curl -v http://localhost:8001/api/v1/users/3 | jq
   "id": 3,
   "name": "Tinkler",
   "email": "tinkler@gmail.com",
+  "password": "12345"
+}
+````
+
+## Trabajando con argumentos en el Dockerfile (ARG)
+
+Antes de mostrar los cambios realizados para trabajar con argumentos (ARG), considero importante revisar la siguiente
+teoría:
+
+### [Entendiendo cómo interactúan ARG y FROM](https://docs.docker.com/engine/reference/builder/#understand-how-arg-and-from-interact)
+
+Las instrucciones `FROM` soportan variables que son declaradas por cualquier instrucción `ARG` que ocurra antes del
+primer `FROM`. Es decir, podemos declarar al inicio de todas las etapas variables del tipo `ARG` y la instrucción
+`FROM` de cada etapa las podrá usar sin problema. **Veamos el siguiente ejemplo (no es parte del proyecto):**
+
+````dockerfile
+ARG  CODE_VERSION=latest
+
+FROM base:${CODE_VERSION}
+CMD  /code/run-app
+
+FROM extras:${CODE_VERSION}
+CMD  /code/run-extras
+````
+
+Ahora, qué pasa si queremos usar el `ARG` definido al inicio del `Dockerfile` dentro de las etapas, es decir, a
+continuación del `FROM` de cada etapa. Bueno, un `ARG` declarado antes de un `FROM` está fuera de una etapa de
+construcción, por lo que no se puede utilizar en ninguna instrucción después de un `FROM`. **Para utilizar el valor
+predeterminado de un ARG declarado antes del primer FROM**, `utilice una instrucción ARG sin valor` dentro de una
+etapa de construcción:
+
+````dockerfile
+ARG VERSION=latest
+
+FROM busybox:${VERSION}
+# Aquí se está volviendo a definir el ARG VERSION pero sin valor para poder usar
+# dentro de esta etapa la variable declarada al inicio del archivo
+ARG VERSION
+RUN echo ${VERSION} > image_version
+````
+
+### Utilizando variables ARG
+
+A continuación se muestra el `Dockerfile` completo del `dk-ms-users` donde hacemos uso de variables `ARG`.
+
+````dockerfile
+ARG MICROSERVICE_NAME=dk-ms-users
+
+FROM openjdk:17-jdk-alpine AS builder
+ARG MICROSERVICE_NAME
+WORKDIR /app/business-domain/${MICROSERVICE_NAME}
+COPY ./pom.xml /app
+COPY ./business-domain/pom.xml /app/business-domain
+COPY ./business-domain/${MICROSERVICE_NAME}/pom.xml ./
+COPY ./business-domain/${MICROSERVICE_NAME}/mvnw ./
+COPY ./business-domain/${MICROSERVICE_NAME}/.mvn ./.mvn
+RUN sed -i -e 's/\r$//' ./mvnw
+RUN ./mvnw dependency:go-offline
+COPY ./business-domain/${MICROSERVICE_NAME}/src ./src
+RUN ./mvnw clean package -DskipTests
+
+FROM openjdk:17-jdk-alpine
+ARG MICROSERVICE_NAME
+ARG HOST_PORT=8001
+WORKDIR /app
+RUN mkdir ./logs
+COPY --from=builder /app/business-domain/${MICROSERVICE_NAME}/target/*.jar ./app.jar
+ENV CONTAINER_PORT=8001
+EXPOSE ${HOST_PORT}
+CMD ["java", "-jar", "app.jar"]
+````
+
+**DONDE**
+
+- `ARG MICROSERVICE_NAME=dk-ms-users`, en esta instrucción definimos la variable del tipo `ARG` llamada
+  `MICROSERVICE_NAME` y le estamos asignando un valor por defecto `dk-ms-users`. Nótese que este `ARG` está siendo
+  definida al inicio del archivo, antes de empezar el primer `FROM`. Esto se hace intencionalmente con la finalidad de
+  poder acceder a ese `ARG` desde las otras etapas de construcción.
+- Observemos que en las dos etapas del dockerfile, a continuación de cada `FROM` estamos volviendo a definir el
+  `ARG MICROSERVICE_NAME`. Esto lo hacemos para poder utilizar el valor del `ARG` definido en la primera línea del
+  archivo. Si usamos directamente el `ARG` dentro de las etapas, es decir lo usamos así `${MICROSERVICE_NAME}`, sin
+  haber vuelto a definirla, probablemente nos va a marcar algún error o simplemente el `ARG` estará vacío.
+- En la segunda etapa de construcción, definí otra variable con su valor `ARG HOST_PORT=8001` y es en esa misma etapa
+  que estamos haciendo uso de ella en la instrucción `EXPOSE ${HOST_PORT}`. Esta variable hace referencia al puerto
+  externo del contenedor, de tal forma que desde la máquina local podamos acceder al contenedor a través de ese puerto.
+  Pero, recordemos que el `EXPOSE` solo funciona como una documentación, no crea el puerto en sí.
+
+Ahora, construiremos la imagen y ejecutaremos un contenedor:
+
+````bash
+$ docker build -t dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
+
+$ docker container run -d -p 8001:8001 --rm --name dk-ms-users --network spring-net dk-ms-users
+2b7669edced87df22c3aa109aa42549895e90d28ddedd6d0fd954b596df43f61
+````
+
+Verificamos el log del contendor:
+
+````bash
+$ docker container logs dk-ms-users
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.1.4)
+
+...
+2023-11-02T16:53:06.949Z  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8001 (http)
+...
+2023-11-02T16:53:14.149Z  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8001 (http) with context path ''
+2023-11-02T16:53:14.185Z  INFO 1 --- [           main] c.m.d.b.d.u.app.DkMsUsersApplication     : Started DkMsUsersApplication in 13.018 seconds (process running for 14.264)
+````
+
+Accedemos desde la pc local hacia el contenedor y comprobamos que todo sigue funcionando correctamente:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users/1 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "martin",
+  "email": "martin@gmail.com",
+  "password": "12345"
+}
+````
+
+### Sobreescribiendo variables ARG a través de la línea de comando
+
+Al momento de construir una imagen podemos asignar en la misma línea de comando la variable ARG que hayamos definido
+en el `Dockerfile`, de esa forma estaremos sobreescribiendo dicha variable. Esto es posible gracias a la instrucción
+`--build-arg <varname>=<value>`.
+
+Realicemos una pequeña modificación al `Dockerfile`, **solo para este ejemplo**. Vamos a comprobar que efectivamente
+está tomando la variable ARG que definamos en la línea de comando y la vamos a utilizar tanto en el `ENV CONTAINER_PORT`
+COMO EN EL `EXPOSE ${HOST_PORT}`, de esta manera, el valor que coloquemos al `HOST_PORT` por la línea de comando
+será el valor con la que la aplicación de Spring Boot se ejecute al interior del contenedor, y además será el valor
+que se exponga, como parte de la documentación.
+
+````dockerfile
+# Segunta etapa del Dockerfile
+ARG HOST_PORT=8001
+## Otras instrucciones
+#ENV CONTAINER_PORT=8001 # Lo comentamos solo para el ejemplo
+ENV CONTAINER_PORT=${HOST_PORT}
+EXPOSE ${HOST_PORT}
+# Instrucción CMD
+````
+
+Ahora, construyamos la imagen definiendo la instrucción `--build-arg` y luego ejecutemos un contenedor:
+
+````bash
+$ docker build -t dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile --build-arg HOST_PORT=9292
+
+$ docker container run -d -p 9292:9292 --rm --name dk-ms-users --network spring-net dk-ms-users
+e0f1aeee37a7f3fe6743f61fe9f4fb5ac54d7766f94d06e095d32166e03ff956
+````
+
+Verificamos el log del contenedor y vemos que el puerto donde está ejecutándose la aplicación de Spring Boot es
+el puerto `9292`, esto se está aplicando por esta instrucción `ENV CONTAINER_PORT=${HOST_PORT}`:
+
+````bash
+$ docker container logs dk-ms-users
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.1.4)
+
+...
+2023-11-02T17:24:11.454Z  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 9292 (http)
+...
+2023-11-02T17:24:20.749Z  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 9292 (http) with context path ''
+2023-11-02T17:24:20.796Z  INFO 1 --- [           main] c.m.d.b.d.u.app.DkMsUsersApplication     : Started DkMsUsersApplication in 15.653 seconds (process running for 17.038)
+````
+
+Accedemos desde la pc local hacia el contenedor, esta vez usando el puerto definido en el `HOST_PORT=9292` y
+comprobamos que sigue funcionando correctamente:
+
+````bash
+$  curl -v http://localhost:9292/api/v1/users/2 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 2,
+  "name": "Alison",
+  "email": "alicon@gmail.com",
   "password": "12345"
 }
 ````
