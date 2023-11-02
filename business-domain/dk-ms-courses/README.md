@@ -1541,3 +1541,244 @@ $ curl -v http://localhost:8002/api/v1/courses/1 | jq
   ]
 }
 ````
+
+## Variables de ambiente (ENV) para los parámetros de PostgreSQL
+
+Configuramos nuevas variables de ambiente en el `application.yml`:
+
+````yaml
+server:
+  port: ${CONTAINER_PORT:8002}
+
+spring:
+  application:
+    name: dk-ms-courses
+
+  datasource:
+    url: jdbc:postgresql://${DATA_BASE_HOST}:${DATA_BASE_PORT}/${DATA_BASE_NAME}
+    username: ${DATA_BASE_USERNAME}
+    password: ${DATA_BASE_PASSWORD}
+# Other properties
+````
+
+Las anteriores variables de ambiente las tenemos que definir en el archivo `.env`, ya que las manejaremos a través de
+ese archivo:
+
+````dotenv
+# Host and Container
+HOST_PORT=8002
+CONTAINER_PORT=8002
+
+# Data Base
+DATA_BASE_HOST=postgres-14
+DATA_BASE_PORT=5432
+DATA_BASE_NAME=db_dk_ms_courses
+DATA_BASE_USERNAME=postgres
+DATA_BASE_PASSWORD=magadiflo
+````
+
+Volvemos a construir la imagen:
+
+````bash
+$ docker build -t dk-ms-courses . -f .\business-domain\dk-ms-courses\Dockerfile
+````
+
+Ahora arrancaremos un contenedor pero especificando el archivo `.env`, ya que en ese archivo definimos las variables de
+ambiente:
+
+````bash
+$ docker container run -d -p 8002:8002 --env-file .\business-domain\dk-ms-courses\.env --rm --name dk-ms-courses --network spring-net dk-ms-courses
+858d409803d167b37635c32805ee78f19ac38afffc6ef1d6b63bfad1ffb5314d
+````
+
+Verificamos que esté funcionando correctamente haciendo una llamada al api del `dk-ms-courses`:
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[
+  {
+    "id": 1,
+    "name": "Docker",
+    "courseUsers": [
+      {
+        "id": 1,
+        "userId": 4
+      },
+      {
+        "id": 2,
+        "userId": 1
+      }
+    ],
+    "users": []
+  },
+  {
+    "id": 2,
+    "name": "Kubernetes",
+    "courseUsers": [],
+    "users": []
+  },
+  {
+    "id": 3,
+    "name": "Angular",
+    "courseUsers": [],
+    "users": []
+  }
+]
+````
+
+Verificamos que la comunicación entre ambos contenedores sigue funcionando:
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses/1 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "Docker",
+  "courseUsers": [
+    {
+      "id": 1,
+      "userId": 4
+    },
+    {
+      "id": 2,
+      "userId": 1
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "name": "martin",
+      "email": "martin@gmail.com",
+      "password": "12345"
+    },
+    {
+      "id": 4,
+      "name": "Nophy",
+      "email": "nophy@gmail.com",
+      "password": "12345"
+    }
+  ]
+}
+````
+
+## Revisando variables de ambiente DB con el comando inspect
+
+En la sección anterior luego de haber creado las variables de entorno comprobamos que todo estaba funcionando
+correctamente. En esta sección inspeccionaremos el contenedor para ver que allí podemos encontrar las variables
+definidas.
+
+````bash
+$ docker container inspect dk-ms-courses
+[
+  {
+    ...
+    "Config": {
+        ...
+        "Env": [
+            "HOST_PORT=8002",
+            "CONTAINER_PORT=8002",
+            "DATA_BASE_HOST=postgres-14",
+            "DATA_BASE_PORT=5432",
+            "DATA_BASE_NAME=db_dk_ms_courses",
+            "DATA_BASE_USERNAME=postgres",
+            "DATA_BASE_PASSWORD=magadiflo",
+            "PATH=/opt/openjdk-17/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+            "JAVA_HOME=/opt/openjdk-17",
+            "JAVA_VERSION=17-ea+14"
+            ],
+        "Cmd": [
+            "java",
+            "-jar",
+            "app.jar"
+        ],
+        "Image": "dk-ms-courses",
+        "Volumes": null,
+        "WorkingDir": "/app",
+        ...
+    },
+    ...
+  }
+]
+````
+
+## Variables de ambiente (ENV) para los hostnames de los contenedores
+
+En esta sección vamos a colocar en variables de ambiente el host y el puerto del microservicio `dk-ms-users` con el
+que nos vamos a comunicar usando el `Feign Client`, de esa forma evitamos tenerlo hardcodeado. Entonces, en el archivo
+`.env` agregamos las nuevas variables de entorno:
+
+````dotenv
+# others variables
+
+# Communication with microservice dk-ms-users
+CLIENT_USERS_HOST=dk-ms-users
+CLIENT_USERS_PORT=8001
+````
+
+A continuación en el `application.yml` creamos **nuestras propiedades personalizadas** que harán uso de las
+variables de entorno definidas en el `.env`:
+
+````yaml
+# Other properties
+
+# Custom property
+microservices:
+  communication:
+    dk-ms-users:
+      url: ${CLIENT_USERS_HOST}:${CLIENT_USERS_PORT}
+````
+
+Finalmente, en la interfaz `IUserFeignClient` usamos la propiedad personalizada que definimos en el `application.yml`.
+Una de las características de la anotación `@FeignClient` es que dentro de la `url` podemos usar el `spEL` para poder
+acceder a la configuración del `application.yml`:
+
+````java
+
+@FeignClient(name = "dk-ms-users", url = "${microservices.communication.dk-ms-users.url}", path = "/api/v1/users")
+public interface IUserFeignClient {
+    /* code */
+}
+````
+
+Una vez finalizado todos los cambios, es necesario volver a construir la imagen:
+
+````bash
+$ docker build -t dk-ms-courses . -f .\business-domain\dk-ms-courses\Dockerfile
+````
+
+Ahora, levantamos un contenedor:
+
+````bash
+$ docker container run -d -p 8002:8002 --env-file .\business-domain\dk-ms-courses\.env --rm --name dk-ms-courses --network spring-net dk-ms-courses
+a533ce5ba73a03a0b8fd0487c76abfd07095cd6d0fd777e9afeae603941afd9d
+````
+
+Finalmente, teniendo en cuenta que en el `dk-ms-users` también hicimos los mismos cambios, es momento de probar la
+comunicación entre ambos microservicios.
+
+La comprobación consistirá, en que desde este microservicio crearemos al usuario `Liz` y lo asignaremos a un curso:
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"Liz\", \"email\": \"liz@gmail.com\", \"password\": \"12345\"}" http://localhost:8002/api/v1/courses/create-user-and-assign-to-course/1 | jq
+
+>
+< HTTP/1.1 201
+< Location: http://localhost:8002/api/v1/courses/create-user-and-assign-to-course/1/6
+< Content-Type: application/json
+<
+{
+  "id": 6,
+  "name": "Liz",
+  "email": "liz@gmail.com",
+  "password": "12345"
+}
+````

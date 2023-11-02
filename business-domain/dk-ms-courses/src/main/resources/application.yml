@@ -1,14 +1,14 @@
 server:
-  port: 8002
+  port: ${CONTAINER_PORT:8002}
 
 spring:
   application:
     name: dk-ms-courses
 
   datasource:
-    url: jdbc:postgresql://postgres-14:5432/db_dk_ms_courses
-    username: postgres
-    password: magadiflo
+    url: jdbc:postgresql://${DATA_BASE_HOST}:${DATA_BASE_PORT}/${DATA_BASE_NAME}
+    username: ${DATA_BASE_USERNAME}
+    password: ${DATA_BASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -23,3 +23,8 @@ logging:
     org.hibernate.SQL: debug
   file:
     name: /app/logs/dk-ms-courses.log
+
+microservices:
+  communication:
+    dk-ms-users:
+      url: ${CLIENT_USERS_HOST}:${CLIENT_USERS_PORT}
