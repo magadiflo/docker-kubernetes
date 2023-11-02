@@ -1709,3 +1709,76 @@ $ docker container inspect dk-ms-courses
   }
 ]
 ````
+
+## Variables de ambiente (ENV) para los hostnames de los contenedores
+
+En esta sección vamos a colocar en variables de ambiente el host y el puerto del microservicio `dk-ms-users` con el
+que nos vamos a comunicar usando el `Feign Client`, de esa forma evitamos tenerlo hardcodeado. Entonces, en el archivo
+`.env` agregamos las nuevas variables de entorno:
+
+````dotenv
+# others variables
+
+# Communication with microservice dk-ms-users
+CLIENT_USERS_HOST=dk-ms-users
+CLIENT_USERS_PORT=8001
+````
+
+A continuación en el `application.yml` creamos **nuestras propiedades personalizadas** que harán uso de las
+variables de entorno definidas en el `.env`:
+
+````yaml
+# Other properties
+
+# Custom property
+microservices:
+  communication:
+    dk-ms-users:
+      url: ${CLIENT_USERS_HOST}:${CLIENT_USERS_PORT}
+````
+
+Finalmente, en la interfaz `IUserFeignClient` usamos la propiedad personalizada que definimos en el `application.yml`.
+Una de las características de la anotación `@FeignClient` es que dentro de la `url` podemos usar el `spEL` para poder
+acceder a la configuración del `application.yml`:
+
+````java
+
+@FeignClient(name = "dk-ms-users", url = "${microservices.communication.dk-ms-users.url}", path = "/api/v1/users")
+public interface IUserFeignClient {
+    /* code */
+}
+````
+
+Una vez finalizado todos los cambios, es necesario volver a construir la imagen:
+
+````bash
+$ docker build -t dk-ms-courses . -f .\business-domain\dk-ms-courses\Dockerfile
+````
+
+Ahora, levantamos un contenedor:
+
+````bash
+$ docker container run -d -p 8002:8002 --env-file .\business-domain\dk-ms-courses\.env --rm --name dk-ms-courses --network spring-net dk-ms-courses
+a533ce5ba73a03a0b8fd0487c76abfd07095cd6d0fd777e9afeae603941afd9d
+````
+
+Finalmente, teniendo en cuenta que en el `dk-ms-users` también hicimos los mismos cambios, es momento de probar la
+comunicación entre ambos microservicios.
+
+La comprobación consistirá, en que desde este microservicio crearemos al usuario `Liz` y lo asignaremos a un curso:
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"Liz\", \"email\": \"liz@gmail.com\", \"password\": \"12345\"}" http://localhost:8002/api/v1/courses/create-user-and-assign-to-course/1 | jq
+
+>
+< HTTP/1.1 201
+< Location: http://localhost:8002/api/v1/courses/create-user-and-assign-to-course/1/6
+< Content-Type: application/json
+<
+{
+  "id": 6,
+  "name": "Liz",
+  "email": "liz@gmail.com",
+  "password": "12345"
+}
+````

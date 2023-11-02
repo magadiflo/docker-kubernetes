@@ -2370,3 +2370,76 @@ $ docker container inspect dk-ms-users
   }
 ]
 ````
+
+## Variables de ambiente (ENV) para los hostnames de los contenedores
+
+En esta sección vamos a colocar en variables de ambiente el host y el puerto del microservicio `dk-ms-courses` con el
+que nos vamos a comunicar usando el `Feign Client`, de esa forma evitamos tenerlo hardcodeado. Entonces, en el archivo
+`.env` agregamos las nuevas variables de entorno:
+
+````dotenv
+# others variables
+
+# Communication with microservice dk-ms-courses
+CLIENT_COURSES_HOST=dk-ms-courses
+CLIENT_COURSES_PORT=8002
+````
+
+A continuación en el `application.yml` creamos **nuestras propiedades personalizadas** que harán uso de las
+variables de entorno definidas en el `.env`:
+
+````yaml
+# Other properties
+
+# Custom property
+microservices:
+  communication:
+    dk-ms-courses:
+      url: ${CLIENT_COURSES_HOST}:${CLIENT_COURSES_PORT}
+````
+
+Finalmente, en la interfaz `ICourseFeignClient` usamos la propiedad personalizada que definimos en el `application.yml`.
+Una de las características de la anotación `@FeignClient` es que dentro de la `url` podemos usar el `spEL` para poder
+acceder a la configuración del `application.yml`:
+
+````java
+
+@FeignClient(name = "dk-ms-courses", url = "${microservices.communication.dk-ms-courses.url}", path = "/api/v1/courses")
+public interface ICourseFeignClient {
+    /* code */
+}
+````
+
+Una vez finalizado todos los cambios, es necesario volver a construir la imagen:
+
+````bash
+$ docker build -t dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
+````
+
+Ahora, levantamos un contenedor:
+
+````bash
+$ docker container run -d -p 8001:8001 --env-file .\business-domain\dk-ms-users\.env --rm --name dk-ms-users --network spring-net dk-ms-users
+57a78403ce768ec4335b330eabef1df803902c89f8e3ae3e3569bbe97c89fca8
+````
+
+Finalmente, teniendo en cuenta que en el `dk-ms-courses` también hicimos los mismos cambios, es momento de probar la
+comunicación entre ambos microservicios.
+
+La comprobación consistirá, en que desde el `dk-ms-courses` crearemos al usuario `Liz` y lo asignaremos a un curso.
+Luego desde nuestro microservicio `dk-ms-users` podremos ver a ese usuario:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users/6 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 6,
+  "name": "Liz",
+  "email": "liz@gmail.com",
+  "password": "12345"
+}
+````

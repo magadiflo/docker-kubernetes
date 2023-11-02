@@ -23,3 +23,8 @@ logging:
     org.hibernate.SQL: debug
   file:
     name: /app/logs/dk-ms-users.log
+
+microservices:
+  communication:
+    dk-ms-courses:
+      url: ${CLIENT_COURSES_HOST}:${CLIENT_COURSES_PORT}
