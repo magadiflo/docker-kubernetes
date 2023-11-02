@@ -1541,3 +1541,131 @@ $ curl -v http://localhost:8002/api/v1/courses/1 | jq
   ]
 }
 ````
+
+## Variables de ambiente (ENV) para los parámetros de PostgreSQL
+
+Configuramos nuevas variables de ambiente en el `application.yml`:
+
+````yaml
+server:
+  port: ${CONTAINER_PORT:8002}
+
+spring:
+  application:
+    name: dk-ms-courses
+
+  datasource:
+    url: jdbc:postgresql://${DATA_BASE_HOST}:${DATA_BASE_PORT}/${DATA_BASE_NAME}
+    username: ${DATA_BASE_USERNAME}
+    password: ${DATA_BASE_PASSWORD}
+# Other properties
+````
+
+Las anteriores variables de ambiente las tenemos que definir en el archivo `.env`, ya que las manejaremos a través de
+ese archivo:
+
+````dotenv
+# Host and Container
+HOST_PORT=8002
+CONTAINER_PORT=8002
+
+# Data Base
+DATA_BASE_HOST=postgres-14
+DATA_BASE_PORT=5432
+DATA_BASE_NAME=db_dk_ms_courses
+DATA_BASE_USERNAME=postgres
+DATA_BASE_PASSWORD=magadiflo
+````
+
+Volvemos a construir la imagen:
+
+````bash
+$ docker build -t dk-ms-courses . -f .\business-domain\dk-ms-courses\Dockerfile
+````
+
+Ahora arrancaremos un contenedor pero especificando el archivo `.env`, ya que en ese archivo definimos las variables de
+ambiente:
+
+````bash
+$ docker container run -d -p 8002:8002 --env-file .\business-domain\dk-ms-courses\.env --rm --name dk-ms-courses --network spring-net dk-ms-courses
+858d409803d167b37635c32805ee78f19ac38afffc6ef1d6b63bfad1ffb5314d
+````
+
+Verificamos que esté funcionando correctamente haciendo una llamada al api del `dk-ms-courses`:
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+[
+  {
+    "id": 1,
+    "name": "Docker",
+    "courseUsers": [
+      {
+        "id": 1,
+        "userId": 4
+      },
+      {
+        "id": 2,
+        "userId": 1
+      }
+    ],
+    "users": []
+  },
+  {
+    "id": 2,
+    "name": "Kubernetes",
+    "courseUsers": [],
+    "users": []
+  },
+  {
+    "id": 3,
+    "name": "Angular",
+    "courseUsers": [],
+    "users": []
+  }
+]
+````
+
+Verificamos que la comunicación entre ambos contenedores sigue funcionando:
+
+````bash
+$ curl -v http://localhost:8002/api/v1/courses/1 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "Docker",
+  "courseUsers": [
+    {
+      "id": 1,
+      "userId": 4
+    },
+    {
+      "id": 2,
+      "userId": 1
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "name": "martin",
+      "email": "martin@gmail.com",
+      "password": "12345"
+    },
+    {
+      "id": 4,
+      "name": "Nophy",
+      "email": "nophy@gmail.com",
+      "password": "12345"
+    }
+  ]
+}
+````

@@ -2264,3 +2264,69 @@ $  curl -v http://localhost:9292/api/v1/users/2 | jq
   "password": "12345"
 }
 ````
+
+## Variables de ambiente (ENV) para los parámetros de MySQL
+
+Configuramos nuevas variables de ambiente en el `application.yml`:
+
+````yaml
+server:
+  port: ${CONTAINER_PORT:8001}
+
+spring:
+  application:
+    name: dk-ms-users
+
+  datasource:
+    url: jdbc:mysql://${DATA_BASE_HOST}:${DATA_BASE_PORT}/${DATA_BASE_NAME}
+    username: ${DATA_BASE_USERNAME}
+    password: ${DATA_BASE_PASSWORD}
+# Other properties
+````
+
+Las anteriores variables de ambiente las tenemos que definir en el archivo `.env` ya que será a través de ese archivo
+que las manejaremos:
+
+````dotenv
+# Host and Container
+HOST_PORT=8001
+CONTAINER_PORT=8001
+
+# Data Base
+DATA_BASE_HOST=mysql-8
+DATA_BASE_PORT=3306
+DATA_BASE_NAME=db_dk_ms_users
+DATA_BASE_USERNAME=root
+DATA_BASE_PASSWORD=magadiflo
+````
+
+Volvemos a construir la imagen:
+
+````bash
+$ docker build -t dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
+````
+
+Ahora arrancaremos un contenedor pero especificando el archivo `.env`, ya que en ese archivo definimos las variables de
+ambiente:
+
+````bash
+$ docker container run -d -p 8001:8001 --env-file .\business-domain\dk-ms-users\.env --rm --name dk-ms-users --network spring-net dk-ms-users
+0c1b8f2a0ddfa0715aedcfc9cf1cbe9aea45b7a4afdf60cebb205916f9d8ce63
+````
+
+Verificamos que esté funcionando correctamente haciendo una llamada al api del `dk-ms-users`:
+
+````bash
+$ curl -v http://localhost:8001/api/v1/users/1 | jq
+
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "id": 1,
+  "name": "martin",
+  "email": "martin@gmail.com",
+  "password": "12345"
+}
+````
