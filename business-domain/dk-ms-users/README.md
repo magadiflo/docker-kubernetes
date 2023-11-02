@@ -2330,3 +2330,43 @@ $ curl -v http://localhost:8001/api/v1/users/1 | jq
   "password": "12345"
 }
 ````
+
+## Revisando variables de ambiente DB con el comando inspect
+
+En la sección anterior luego de haber creado las variables de entorno comprobamos que todo estaba funcionando
+correctamente. En esta sección inspeccionaremos el contenedor para ver que allí podemos encontrar las variables
+definidas.
+
+````bash
+$ docker container inspect dk-ms-users
+[
+  {
+    ...
+    "Config": {
+        ...
+        "Env": [
+            "HOST_PORT=8001",
+            "CONTAINER_PORT=8001",
+            "DATA_BASE_HOST=mysql-8",
+            "DATA_BASE_PORT=3306",
+            "DATA_BASE_NAME=db_dk_ms_users",
+            "DATA_BASE_USERNAME=root",
+            "DATA_BASE_PASSWORD=magadiflo",
+            "PATH=/opt/openjdk-17/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+            "JAVA_HOME=/opt/openjdk-17",
+            "JAVA_VERSION=17-ea+14"
+        ],
+        "Cmd": [
+            "java",
+            "-jar",
+            "app.jar"
+        ],
+        "Image": "dk-ms-users",
+        "Volumes": null,
+        "WorkingDir": "/app",
+        ...
+    },
+    ...
+  }
+]
+````
