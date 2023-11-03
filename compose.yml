@@ -1,0 +1,30 @@
+services:
+  mysql-8:
+    container_name: mysql-8
+    image: mysql:8
+    ports:
+      - 3307:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: magadiflo
+      MYSQL_DATABASE: db_dk_ms_users
+    volumes:
+      - data-mysql:/var/lib/mysql
+    restart: always
+    networks:
+      - spring-net
+  postgres-14:
+    container_name: postgres-14
+    image: postgres:14-alpine
+    ports:
+      - 5433:5432
+    environment:
+      POSTGRES_PASSWORD: magadiflo
+      POSTGRES_DB: db_dk_ms_courses
+    volumes:
+      - data-postgres:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - spring-net
+networks:
+  spring-net:
+    name: spring-net
