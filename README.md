@@ -1036,3 +1036,39 @@ valores ENV pueden ser anulados al iniciar un contenedor.
 A continuación se muestra el resumen entre ARG vs ENV:
 
 ![11.arguments-environment](./assets/11.arguments-environment.png)
+
+---
+
+# Sección 11: Docker Compose: Orquestador para definir y ejecutar multi-contenedores
+
+---
+
+## [Docker Compose overview](https://docs.docker.com/compose/)
+
+Compose es una herramienta para definir y ejecutar aplicaciones Docker multicontenedor. Con Compose, utilizas un archivo
+YAML para configurar los servicios de tu aplicación. Luego, con un solo comando, creas e inicias todos los servicios a
+partir de tu configuración.
+
+Compose funciona en todos los entornos; producción, staging, desarrollo, pruebas, así como flujos de trabajo CI. También
+dispone de comandos para gestionar todo el ciclo de vida de tu aplicación:
+
+- Iniciar, detener y reconstruir servicios
+- Ver el estado de los servicios en ejecución
+- Transmitir la salida de registro de los servicios en ejecución
+- Ejecutar un comando puntual en un servicio
+
+Las características clave de Compose que lo hacen eficaz son:
+
+- Disponer de múltiples entornos aislados en un único host
+- Conservar los datos de volumen cuando se crean contenedores
+- Recrear sólo los contenedores que han cambiado
+- Soportar variables y mover una composición entre entornos
+
+![13.docker-compose](./assets/13.docker-compose.png)
+
+- En `Docker Compose` un contenedor es llamado servicio: `Service == Container`.
+- Docker Compose `NO` es adecuado para administrar Múltiples Contenedores en `diferentes máquinas` (diferentes hosts).
+- El uso ideal de Docker Compose es para una sola máquina.
+- `Kubernetes`, tiene el concepto de Docker Compose, pero es más poderoso porque ya es un cluster con múltiples
+  máquinas,
+  este `sí es adecuado` para ejecutar múltiples contenedores en `múltiples máquinas` o hosts.
