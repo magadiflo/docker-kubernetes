@@ -1,14 +1,14 @@
 server:
-  port: 8001
+  port: ${CONTAINER_PORT:8001}
 
 spring:
   application:
     name: dk-ms-users
 
   datasource:
-    url: jdbc:mysql://localhost:3306/db_dk_ms_users
-    username: root
-    password: magadiflo
+    url: jdbc:mysql://${DATA_BASE_HOST}:${DATA_BASE_PORT}/${DATA_BASE_NAME}
+    username: ${DATA_BASE_USERNAME}
+    password: ${DATA_BASE_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -21,3 +21,10 @@ spring:
 logging:
   level:
     org.hibernate.SQL: debug
+  file:
+    name: /app/logs/dk-ms-users.log
+
+microservices:
+  communication:
+    dk-ms-courses:
+      url: ${CLIENT_COURSES_HOST}:${CLIENT_COURSES_PORT}
