@@ -1144,8 +1144,8 @@ A continuación se muestran algunos atributos usados dentro de un servicio:
   configurar redes con nombre que pueden reutilizarse en varios servicios`. Para utilizar una red en varios servicios,
   debes conceder explícitamente acceso a `cada servicio` utilizando el atributo `networks`.
 
-  > Podríamos no configurar explícitamente un `network` y en ese caso, por defecto, `Compose` configura una única red 
-  > para tu aplicación. Cada contenedor para un servicio se une a la red por defecto y es accesible por otros 
+  > Podríamos no configurar explícitamente un `network` y en ese caso, por defecto, `Compose` configura una única red
+  > para tu aplicación. Cada contenedor para un servicio se une a la red por defecto y es accesible por otros
   > contenedores en esa red, y detectable por ellos en un nombre de host idéntico al nombre del contenedor.
 
 Luego de la explicación teórica anterior, llega el momento de crear nuestro archivo `compose.yml` en la raíz de nuestro
@@ -1195,3 +1195,69 @@ networks:
   únicos que usarán dichos volúmenes, no es necesario `la declaración de volúmenes de nivel superior`, ya que no
   necesitamos compartirlos con otros servicios.
 
+## Añadiendo contenedores de microservicios dk-ms-users y dk-ms-courses
+
+En el apartado anterior agregamos al archivo `compose.yml` los servicios para nuestros contenedores de bases de datos.
+En esta sección veremos cómo agregar los servicios para los contenedores de nuestros microservicios. Pero antes,
+observemos las imágenes que tenemos en la plataforma de `Docker`, ya que haremos uso de las imágenes construídas de
+nuestros microservicios que actualmente tenemos disponibles.
+
+````bash
+$ docker image ls
+REPOSITORY      TAG         IMAGE ID       CREATED        SIZE
+dk-ms-courses   latest      463c10aa1fbd   24 hours ago   385MB
+dk-ms-users     latest      04781bfdc1f1   24 hours ago   387MB
+mysql           8           a3b6608898d6   10 days ago    596MB
+postgres        14-alpine   ed089947c1bd   4 weeks ago    236MB
+````
+
+Ahora sí, veamos la configuración agregada:
+
+````yaml
+services:
+  #mysql-8 service
+  #postgres-14 service
+
+  dk-ms-users:
+    container_name: dk-ms-users
+    image: dk-ms-users:latest
+    ports:
+      - 8001:8001
+    env_file: ./business-domain/dk-ms-users/.env
+    networks:
+      - spring-net
+    depends_on:
+      - mysql-8
+    restart: always
+  dk-ms-courses:
+    container_name: dk-ms-courses
+    image: dk-ms-courses:latest
+    ports:
+      - 8002:8002
+    env_file: ./business-domain/dk-ms-courses/.env
+    networks:
+      - spring-net
+    depends_on:
+      - postgres-14
+      - dk-ms-users
+    restart: always
+
+#Aquí va el elemento de nivel superior Networks
+````
+
+**DONDE**
+
+- Hemos agregado 2 servicios `dk-ms-users` y `dk-ms-courses`.
+- En `image` estamos definiendo la imagen que vamos a usar y que precisamente son los que tenemos en la plataforma
+  de `Docker` de nuestra máquina local. ¡Ojo! actualmente tenemos construidas las imágenes, pero más adelante veremos
+  cómo usar `compose.yml` para que inicie la construcción de la imagen apoyándonos del `Dockerfile`.
+- La opcion `depends_on` hace referencia al servicio del cual depende. Por ejemplo, servicio `dk-ms-courses` depende de
+  los servicios `postgres-14` y `dk-ms-users`, es decir para que se genere el contenedor del servicio `dk-ms-courses`
+  primero deben estar listos los dos servicios del que depende.
+- `restart` define la política que la plataforma aplica al terminar el contenedor.
+  > - `no`: La política de reinicio por defecto. No reinicia el contenedor bajo ninguna circunstancia.
+  >- `always`: La política siempre reinicia el contenedor hasta su eliminación.
+  >- `on-failure`: La política reinicia el contenedor si el código de salida indica un error.
+  >- `unless-stopped`: La política reinicia el contenedor independientemente del código de salida, pero deja de
+     reiniciarlo cuando el servicio se detiene o se elimina.
+  

@@ -25,6 +25,29 @@ services:
     restart: always
     networks:
       - spring-net
+  dk-ms-users:
+    container_name: dk-ms-users
+    image: dk-ms-users:latest
+    ports:
+      - 8001:8001
+    env_file: ./business-domain/dk-ms-users/.env
+    networks:
+      - spring-net
+    depends_on:
+      - mysql-8
+    restart: always
+  dk-ms-courses:
+    container_name: dk-ms-courses
+    image: dk-ms-courses:latest
+    ports:
+      - 8002:8002
+    env_file: ./business-domain/dk-ms-courses/.env
+    networks:
+      - spring-net
+    depends_on:
+      - postgres-14
+      - dk-ms-users
+    restart: always
 networks:
   spring-net:
     name: spring-net
