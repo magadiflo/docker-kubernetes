@@ -48,6 +48,13 @@ services:
       - postgres-14
       - dk-ms-users
     restart: always
+volumes:
+  data-mysql:
+    name: data-mysql
+    external: true
+  data-postgres:
+    name: data-postgres
+    external: true
 networks:
   spring-net:
     name: spring-net

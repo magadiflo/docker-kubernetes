@@ -1132,9 +1132,8 @@ A continuación se muestran algunos atributos usados dentro de un servicio:
   de servicio. Puedes usar volúmenes para definir múltiples tipos de montajes; volumen, bind, tmpfs o npipe.
 
   **IMPORTANTE**
-  > **Si el montaje es una ruta de host y solo lo utiliza un único servicio, puede declararse como parte de la
-  > definición del servicio.** Para `reutilizar un volumen a través de múltiples servicios`, se debe **declarar un
-  > volumen con nombre en la clave de volúmenes de nivel superior.**
+  > Para `reutilizar un volumen a través de múltiples servicios`, se debe declarar un `volumen con nombre` **en la clave
+  > de volúmenes de nivel superior.**
   >
   > `La declaración de volúmenes de nivel superior` permite **configurar volúmenes con nombre que pueden reutilizarse en
   > varios servicios.** Para utilizar un volumen en varios servicios, debe conceder explícitamente acceso a cada
@@ -1179,6 +1178,13 @@ services:
     restart: always
     networks:
       - spring-net
+volumes:
+  data-mysql:
+    name: data-mysql
+    external: true
+  data-postgres:
+    name: data-postgres
+    external: true
 networks:
   spring-net:
     name: spring-net
@@ -1191,9 +1197,11 @@ networks:
   de `Docker Hub`.
 - Como todos los servicios estarán en la misma red `spring-net`, debemos definir
   el `elemento de nivel superior networks` y luego cada servicio utilizar la red definida.
-- Los dos servicios definidos usarán su volumen correspondiente a su base de datos. Ahora, como esos servicios serán los
-  únicos que usarán dichos volúmenes, no es necesario `la declaración de volúmenes de nivel superior`, ya que no
-  necesitamos compartirlos con otros servicios.
+- En nuestro caso, trabajaremos con `volumenes con nombre: data-mysql y data-postgres`, las cuales, además de ser
+  definidas en cada servicio, deberán ser definidas en `la declaración de volúmenes de nivel superior`. Como en
+  nuestro caso ya habíamos creado los volúmenes manualmente, es necesario que en `la declaración de volúmenes
+  de nivel superior` debamos especificar `external: true`, eso es para que `docker compose` no cree el volumen, sino
+  más bien, reutilice el que ya tenemos.
 
 ## Añadiendo contenedores de microservicios dk-ms-users y dk-ms-courses
 
@@ -1242,7 +1250,7 @@ services:
       - dk-ms-users
     restart: always
 
-#Aquí va el elemento de nivel superior Networks
+#Aquí van los elementos de nivel superior volumes and networks
 ````
 
 **DONDE**
