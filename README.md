@@ -1128,7 +1128,7 @@ A continuación se muestran algunos atributos usados dentro de un servicio:
   tal y como se define en la especificación de compilación de Compose.
 - `container_name`, es una cadena que especifica un nombre de contenedor personalizado, **en lugar de
   un nombre generado por defecto.**
-- `volumes`, definen rutas de host de montaje o volúmenes con nombre que son accesibles por contenedores
+- `volumes`, definen rutas de host de montaje o `volúmenes con nombre` que son accesibles por contenedores
   de servicio. Puedes usar volúmenes para definir múltiples tipos de montajes; volumen, bind, tmpfs o npipe.
 
   **IMPORTANTE**
@@ -1268,4 +1268,136 @@ services:
   >- `on-failure`: La política reinicia el contenedor si el código de salida indica un error.
   >- `unless-stopped`: La política reinicia el contenedor independientemente del código de salida, pero deja de
      reiniciarlo cuando el servicio se detiene o se elimina.
-  
+
+## Ejecutando todo con docker compose up y down para detener y eliminar todo
+
+Antes de ejecutar el archivo `compose.yml` necesitamos asegurarnos de no tener levantado ningún contenedor que estamos
+usando en los servicios. Además, verificaremos que no tengamos la red `spring-net`, ya que haremos que docker compose
+lo cree por nosotros. Finalmente, verificaremos que los volúmenes creados en secciones anteriores y que en nuestro
+archivo `compose.yml` están siendo usados, aún existan:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+
+$ docker network ls
+NETWORK ID     NAME      DRIVER    SCOPE
+1f87ff640a19   bridge    bridge    local
+6dac92048c81   host      host      local
+4eea7e69fe4f   none      null      local
+
+$ docker volume ls
+DRIVER    VOLUME NAME
+local     42a0a66edf9b44ace0b4afd15093693775ae65224b4a6f1ad9bbd526caac1ca8
+local     835dff164f596335497eac94a448fbd3760fb204131f13b06afb02c8a6e7274b
+local     4548e93f639bc54e07342cfd783dab2fa9a8a120ba58cd8f3ca187e438551302
+local     5875c2ae3923ef62ee137e612a1912a4fcf8d78d0cb69541f586bc8129bd042c
+local     849742d75f37588c2bb8f48917a13e0dedeaa0277c78bb13709ce78a0eae4e76
+local     b422c2733064096c62568cd7d2bc70ed39a6290d02c3f1ba481542f3a73a199b
+local     data-mysql
+local     data-postgres
+````
+
+Listo, una vez que hemos comprobado lo antes mencionado llega el momento de ejecutar el archivo `compose.yml`. Es
+necesario estar ubicados mediante la línea de comandos en la raíz del proyecto, donde precisamente está el
+archivo `compose.yml`:
+
+````bash
+$ docker compose up -d
+[+] Building 0.0s (0/0)                                  docker:default
+[+] Running 5/5
+✔ Network spring-net       Created                                0.1s
+✔ Container mysql-8        Started                                0.2s
+✔ Container postgres-14    Started                                0.2s
+✔ Container dk-ms-users    Started                                0.1s
+✔ Container dk-ms-courses  Started                                0.1s
+````
+
+**DONDE**
+
+- `docker compose up`, construye, (re)crea, inicia y adjunta a contenedores para un servicio. A menos que ya se estén
+  ejecutando, este comando también inicia cualquier servicio vinculado.
+- `-d o --detach`, inicia los contenedores en segundo plano y los deja funcionando.
+
+Verificamos que efectivamente todos los contenedores estén levantados:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE                  COMMAND                  CREATED         STATUS         PORTS                               NAMES
+d14318bd941e   dk-ms-courses:latest   "java -jar app.jar"      2 minutes ago   Up 2 minutes   0.0.0.0:8002->8002/tcp              dk-ms-courses
+ef3203241bde   dk-ms-users:latest     "java -jar app.jar"      2 minutes ago   Up 2 minutes   0.0.0.0:8001->8001/tcp              dk-ms-users
+54358691b4b7   mysql:8                "docker-entrypoint.s…"   2 minutes ago   Up 2 minutes   33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+e0bfac0fa90b   postgres:14-alpine     "docker-entrypoint.s…"   2 minutes ago   Up 2 minutes   0.0.0.0:5433->5432/tcp              postgres-14
+````
+
+Comprobamos que docker compose ha creado la red `spring-net`:
+
+````bash
+$ docker network ls
+NETWORK ID     NAME         DRIVER    SCOPE
+d0ae995003c3   bridge       bridge    local
+6dac92048c81   host         host      local
+4eea7e69fe4f   none         null      local
+0ec3ddfd5777   spring-net   bridge    local
+````
+
+Ahora que tenemos todo levantado realizamos las pruebas para ver si los microservicios se están
+comunicando correctamente y están accediendo a las bases de datos sin problemas. Para eso realizaremos una única
+consulta que probará ambos microservicios y ambas bases de datos:
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"Rocio\", \"email\": \"rocio@gmail.com\", \"password\": \"12345\"}" http://localhost:8002/api/v1/courses/create-user-and-assign-to-course/1 | jq
+
+>
+< HTTP/1.1 201
+< Location: http://localhost:8002/api/v1/courses/create-user-and-assign-to-course/1/7
+< Content-Type: application/json
+<
+{
+  "id": 7,
+  "name": "Rocio",
+  "email": "rocio@gmail.com",
+  "password": "12345"
+}
+````
+
+Como ya comprobamos el funcionamiento de los contenedores, ahora vamos a detenerlos con `docker compose down`, al
+hacerlo, docker compose eliminará todo lo que ha creado:
+
+````bash
+$ docker compose down
+[+] Running 5/5
+✔ Container dk-ms-courses  Removed
+✔ Container dk-ms-users    Removed
+✔ Container postgres-14    Removed
+✔ Container mysql-8        Removed
+✔ Network spring-net       Removed
+````
+
+Verificamos que los contenedores fueron eliminados, lo mismo con la red `spring-net`:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+
+$ docker network ls
+NETWORK ID     NAME      DRIVER    SCOPE
+d0ae995003c3   bridge    bridge    local
+6dac92048c81   host      host      local
+4eea7e69fe4f   none      null      local
+````
+
+Finalmente, verificamos que los volúmenes aún siguen existiendo, ya que estamos usando `volúmenes con nombres`:
+
+````bash
+$ docker volume ls
+DRIVER    VOLUME NAME
+local     42a0a66edf9b44ace0b4afd15093693775ae65224b4a6f1ad9bbd526caac1ca8
+local     835dff164f596335497eac94a448fbd3760fb204131f13b06afb02c8a6e7274b
+local     4548e93f639bc54e07342cfd783dab2fa9a8a120ba58cd8f3ca187e438551302
+local     5875c2ae3923ef62ee137e612a1912a4fcf8d78d0cb69541f586bc8129bd042c
+local     849742d75f37588c2bb8f48917a13e0dedeaa0277c78bb13709ce78a0eae4e76
+local     b422c2733064096c62568cd7d2bc70ed39a6290d02c3f1ba481542f3a73a199b
+local     data-mysql
+local     data-postgres
+````
