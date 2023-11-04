@@ -1401,3 +1401,183 @@ local     b422c2733064096c62568cd7d2bc70ed39a6290d02c3f1ba481542f3a73a199b
 local     data-mysql
 local     data-postgres
 ````
+
+## Build imagen en docker compose
+
+Hasta ahora hemos estado usando en el archivo `compose.yml` las imágenes ya construidas de los microservicios
+`dk-ms-users` y `dk-ms-courses`, pero eso teníamos que hacelo manualmente. Ahora, podemos usar el mismo
+archivo `compose.yml` para construir las imágenes a partir del archivo `Dockerfile` de cada microservicio. Veamos qué
+modificaciones tenemos que hacer en el `compose.yml`:
+
+````yaml
+services:
+  # More services
+  dk-ms-users:
+    container_name: dk-ms-users
+    build:
+      context: .
+      dockerfile: ./business-domain/dk-ms-users/Dockerfile
+    image: dk-ms-users:latest
+    # More options
+  dk-ms-courses:
+    container_name: dk-ms-courses
+    build:
+      context: .
+      dockerfile: ./business-domain/dk-ms-courses/Dockerfile
+    image: dk-ms-courses:latest
+
+# More options
+````
+
+**DONDE**
+
+- `build`, opciones de configuración que se aplican en tiempo de compilación.
+- `context: .`, es el contexto a partir del cual se construirá la imagen. El punto `(.)` indica el directorio actual, o
+  sea el directorio raíz del proyecto en la que se encuentra el archivo `compose.yml`.
+- `dockerfile`, indicamos la ruta del archivo `Dockerfile` para construir la imagen.
+- Si especifica `image` además de `build`, entonces `compose` nombra la imagen construida con el valor definido en la
+  opción `image`. Por ejemplo, para el servicio `dk-ms-users`, al construir la imagen a partir del `Dockerfile` el
+  nombre que tendrá la imagen construida será `dk-ms-users` y tendrá como
+  tag `latest`. [Fuente: docker docs](https://docs.docker.com/compose/compose-file/compose-file-v3/#build)
+
+Listo, ya tenemos configurado los archivos `Dockerfile` dentro del `compose.yml`. Antes de verificar los cambios
+realizados es necesario dejar todo limpio:
+
+````bash
+$ docker image ls
+REPOSITORY   TAG       IMAGE ID   CREATED   SIZE
+````
+
+Ahora, ejecutemos el comando `docker compose up -d` para levantar todos los contendores. Esta vez deberá construirse
+las imágenes de los servicios utilizando el dockerfile:
+
+````bash
+$ docker compose up -d
+! dk-ms-users Warning
+! dk-ms-courses Warning
+✔ mysql-8 10 layers [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿]      0B/0B      Pulled
+✔ postgres-14 8 layers [⣿⣿⣿⣿⣿⣿⣿⣿]      0B/0B      Pulled
+....
+[+] Running 5/5
+✔ Network spring-net       Created
+✔ Container mysql-8        Started
+✔ Container postgres-14    Started
+✔ Container dk-ms-users    Started
+✔ Container dk-ms-courses  Started
+````
+
+Listamos las imágenes y contenedores. Notar que las imágenes tomaron el nombre que definimos en la opción `image`:
+
+````bash
+$ docker image ls
+REPOSITORY      TAG         IMAGE ID       CREATED        SIZE
+dk-ms-users     latest      be99ea9dc9e2   2 hours ago    387MB
+dk-ms-courses   latest      a66bf68642d1   32 hours ago   385MB
+mysql           8           a3b6608898d6   10 days ago    596MB
+postgres        14-alpine   ed089947c1bd   4 weeks ago    236MB
+
+$ docker container ls -a
+CONTAINER ID   IMAGE                  COMMAND                  CREATED         STATUS         PORTS                               NAMES
+25280fedb158   dk-ms-courses:latest   "java -jar app.jar"      3 minutes ago   Up 3 minutes   0.0.0.0:8002->8002/tcp              dk-ms-courses
+cc2b8305bf4b   dk-ms-users:latest     "java -jar app.jar"      3 minutes ago   Up 3 minutes   0.0.0.0:8001->8001/tcp              dk-ms-users
+290e695d57f7   postgres:14-alpine     "docker-entrypoint.s…"   3 minutes ago   Up 3 minutes   0.0.0.0:5433->5432/tcp              postgres-14
+546c667a0a88   mysql:8                "docker-entrypoint.s…"   3 minutes ago   Up 3 minutes   33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+````
+
+### Reconstruyendo imagen con el archivo compose luego de cambiar código fuente
+
+Hasta el momento están ejecutándose todos los contenedores, ahora nos hacemos la siguiente pregunta
+**¿qué pasa si realizamos un cambio en el código fuente?**, bueno como estamos usando `compose` simplemente detenemos
+con `docker compose down` y luego volvemos a levantar usando el comando `docker compose up --build -d`, note la
+bandera `--build`, **esta bandera va a obligar a construir las imágenes antes de iniciar los contenedores.** Si no
+colocamos la bandera `--build` docker compose verificará si existe la imagen y como existe, entonces compose no volverá
+a constuir la imagen sino tomará la que existe para crear los contenedores.
+
+Vamos a realizar una llamada al endpoint de usuarios y nos vamos a fijar en el log:
+
+````bash
+$ docker container logs dk-ms-users
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.1.4)
+
+...
+2023-11-04T06:33:30.545Z  INFO 1 --- [nio-8001-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2023-11-04T06:33:30.548Z  INFO 1 --- [nio-8001-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
+2023-11-04T06:33:30.756Z DEBUG 1 --- [nio-8001-exec-1] org.hibernate.SQL                        :
+    select
+        u1_0.id,
+        u1_0.email,
+        u1_0.name,
+        u1_0.password
+    from
+        users u1_0
+    where
+        u1_0.id=?
+````
+
+Listo, ahora modificaremos el código fuente de ese mismo microservicio, para ser exactos solo agregaré un mensaje por
+consola `"¡Cambio efectuado!"`. Una vez realizado el cambio bajaremos los contendores con el comando `down`:
+
+````bash
+$ docker compose down
+[+] Running 5/5
+✔ Container dk-ms-courses  Removed
+✔ Container postgres-14    Removed
+✔ Container dk-ms-users    Removed
+✔ Container mysql-8        Removed
+✔ Network spring-net       Removed
+````
+
+Ahora que los contenedores están removidos ejecutamos el comando para volverlos a levantar pero agregando esta vez
+la bandera `--build`, la cual va a obligar a construir las imágenes antes de iniciar los contenedores.
+
+````bash
+$ docker compose up --build -d
+...
+[+] Building 25.6s (36/36) FINISHED
+[+] Running 5/5
+✔ Network spring-net       Created
+✔ Container mysql-8        Started
+✔ Container postgres-14    Started
+✔ Container dk-ms-users    Started
+✔ Container dk-ms-courses  Started
+````
+
+Verificamos si están los cambios realizados en el código fuente, obviamente hay que hacer una petición al endpoint del
+microservicio usuarios para ver si se muestra el mensaje en consola:
+
+````bash
+$ docker container logs dk-ms-users
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.1.4)
+
+...
+2023-11-04T06:43:48.246Z  INFO 1 --- [nio-8001-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2023-11-04T06:43:48.255Z  INFO 1 --- [nio-8001-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 8 ms
+¡Cambio efectuado!
+2023-11-04T06:43:48.519Z DEBUG 1 --- [nio-8001-exec-1] org.hibernate.SQL                        :
+    select
+        u1_0.id,
+        u1_0.email,
+        u1_0.name,
+        u1_0.password
+    from
+        users u1_0
+    where
+        u1_0.id=?
+````
+
+Como observamos, ahora se muestra el **cambio que hicimos en el código fuente**, eso significa que nuestra imagen sí se
+volvió a construir.
