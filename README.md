@@ -1581,3 +1581,137 @@ $ docker container logs dk-ms-users
 
 Como observamos, ahora se muestra el **cambio que hicimos en el código fuente**, eso significa que nuestra imagen sí se
 volvió a construir.
+
+---
+
+# Sección 12: Docker Hub: Repositorio para compartir imágenes en la nube
+
+---
+
+`Docker Hub` es un repositorio en la nube que permite compartir, almacenar e implementar imágenes Docker.
+
+## Creando nuestro repositorio y enviando imagen a Docker Hub con push
+
+### Creando repositorio en Docker Hub
+
+En esta sección almacenaremos las imágenes de nuestros microservicios en `Docker Hub`. Para eso necesitamos ingresar
+a la web de [hub.docker](https://hub.docker.com/) con nuestras credenciales previamente registradas.
+
+Para no repetir los pasos, mostraré cómo haremos la subida de las imágenes a Docker Hub con el
+microservicio `dk-ms-users`:
+
+1. Crear un repositorio para la imagen a subir. En este caso, el nombre del repositorio a crear será igual que el nombre
+   del microservicio `dk-ms-users`:
+
+   ![Creando repositorio](./assets/14.creando-repositorio.png)
+
+2. Repositorio recién creado para el microservicio dk-ms-users
+
+   ![Repositorio creado](./assets/15.repositorio-creado.png)
+
+**NOTA**
+> Hay dos cosas importantes que debemos ver luego de la creación del repositorio:
+>
+> 1. El nombre completo de la imagen a subir debe ser igual al nombre del usuario / nombre del repositorio. Es decir, la
+     imagen a pushear desde local debe tener ese nombre `magadiflo/dk-ms-users`.
+> 2. Observemos cómo es que, luego de la creación del repositorio nos muestra el comando de ejemplo para poder enviar a
+     este repositorio una nueva etiqueta:
+>
+> `docker push magadiflo/dk-ms-users:tagname`
+
+### Enviando imagen desde local hacia Docker Hub
+
+Verificamos qué imágenes tenemos en local:
+
+````bash
+$ docker image ls
+REPOSITORY      TAG         IMAGE ID       CREATED       SIZE
+dk-ms-users     latest      9750159d18ce   2 days ago    387MB
+dk-ms-courses   latest      a66bf68642d1   3 days ago    385MB
+mysql           8           a3b6608898d6   12 days ago   596MB
+postgres        14-alpine   ed089947c1bd   4 weeks ago   236MB
+````
+
+Para este ejemplo, nos interesa la imagen `dk-ms-users` con tag `latest`, pero observemos que `NO tenemos el mismo
+nombre que nos solicita Docker Hub`, que como recordaremos es: `magadiflo/dk-ms-users` y en nuestro caso el nombre del
+repositorio en local solo dice `dk-ms-users` **¿qué podemos hacer?**
+
+1. **Primera forma**, podemos volver a crear una nueva imagen con el nombre requerido:
+
+    ````bash
+    $ docker build -t magadiflo/dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
+    
+    $ docker image ls
+    REPOSITORY              TAG         IMAGE ID       CREATED       SIZE
+    dk-ms-users             latest      9750159d18ce   2 days ago    387MB
+    magadiflo/dk-ms-users   latest      57dbf1de4567   2 days ago    387MB
+    dk-ms-courses           latest      a66bf68642d1   3 days ago    385MB
+    mysql                   8           a3b6608898d6   12 days ago   596MB
+    postgres                14-alpine   ed089947c1bd   4 weeks ago   236MB
+    ````
+
+2. **Segunda forma**, a partir de una imagen existente la podemos volver a etiquetar:
+
+    ````bash
+    $ docker image ls
+    REPOSITORY      TAG         IMAGE ID       CREATED       SIZE
+    dk-ms-users     latest      9750159d18ce   2 days ago    387MB
+    dk-ms-courses   latest      a66bf68642d1   3 days ago    385MB
+    mysql           8           a3b6608898d6   12 days ago   596MB
+    postgres        14-alpine   ed089947c1bd   4 weeks ago   236MB
+   
+    $ docker tag dk-ms-users magadiflo/dk-ms-users
+   
+    $ docker image ls
+    REPOSITORY              TAG         IMAGE ID       CREATED       SIZE
+    dk-ms-users             latest      9750159d18ce   2 days ago    387MB
+    magadiflo/dk-ms-users   latest      9750159d18ce   2 days ago    387MB
+    dk-ms-courses           latest      a66bf68642d1   3 days ago    385MB
+    mysql                   8           a3b6608898d6   12 days ago   596MB
+    postgres                14-alpine   ed089947c1bd   4 weeks ago   236MB
+    ````
+
+   Si observamos el resultado anterior, luego de usar el `docker tag`, veremos que tenemos la imagen base (imagen del
+   cual se tomó para generar la nueva imagen) y la nueva imagen. Ambos tienen el mismo `IMAGE ID`:
+
+    ````bash
+    dk-ms-users             latest      9750159d18ce   2 days ago    387MB
+    magadiflo/dk-ms-users   latest      9750159d18ce   2 days ago    387MB 
+    ````
+
+Ahora que ya tenemos en nuestra máquina local la imagen con el nombre correcto que espera recibir el repositorio de
+`Docker Hub`, llega el momento de subir esa imagen.
+
+Si nunca nos hemos logueados mediante la terminal, debemos hacerlo:
+
+````bash
+$ docker login
+Log in with your Docker ID or email address to push and pull images from Docker Hub. If you don't have a Docker ID, head over to https://hub.docker.com/ to create one.
+You can log in with your password or a Personal Access Token (PAT). Using a limited-scope PAT grants better security and is required for organizations using SSO. Learn more at https://docs.docker.com/go/access-tokens/
+
+Username: magadiflo@gmail.com
+Password:
+Login Succeeded
+````
+
+Una vez logueados, podemos enviar nuestra imagen a docker hub:
+
+````bash
+$ docker push magadiflo/dk-ms-users
+Using default tag: latest
+The push refers to repository [docker.io/magadiflo/dk-ms-users]
+2bd2ae00f00a: Pushed
+334322edcbb5: Pushed
+8bfd963f363c: Pushed
+34f7184834b2: Mounted from library/openjdk
+5836ece05bfd: Mounted from library/openjdk
+72e830a4dff5: Mounted from library/openjdk
+latest: digest: sha256:3119dc0a31622211d8c9e00b9430be86b69cfacc939288665135590cdbaee43f size: 1577
+````
+
+**NOTA**
+> Por defecto, al no definir un tag específico, se utiliza el tag `latest`.
+
+Si revisamos el repositorio de `docker hub` veremos que nuestra imagen fue subida:
+
+![imagen-en-docker-hub](./assets/16.imagen-en-docker-hub.png)
