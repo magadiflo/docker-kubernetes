@@ -1715,3 +1715,48 @@ latest: digest: sha256:3119dc0a31622211d8c9e00b9430be86b69cfacc939288665135590cd
 Si revisamos el repositorio de `docker hub` veremos que nuestra imagen fue subida:
 
 ![imagen-en-docker-hub](./assets/16.imagen-en-docker-hub.png)
+
+## Bajando imagen desde Docker Hub con pull
+
+Para esta sección empezaremos sin imágenes en nuestra plataforma local de docker:
+
+````bash
+$ docker image ls
+REPOSITORY   TAG       IMAGE ID   CREATED   SIZE
+````
+
+Ahora, bajaremos la imagen `magadiflo/dk-ms-users` desde `Docker Hub`:
+
+````bash
+$ docker pull magadiflo/dk-ms-users
+Using default tag: latest
+latest: Pulling from magadiflo/dk-ms-users
+5843afab3874: Already exists
+53c9466125e4: Already exists
+d8d715783b80: Already exists
+70f07e65e868: Already exists
+668c6b46a24e: Already exists
+d69dada5da05: Already exists
+Digest: sha256:3119dc0a31622211d8c9e00b9430be86b69cfacc939288665135590cdbaee43f
+Status: Downloaded newer image for magadiflo/dk-ms-users:latest
+docker.io/magadiflo/dk-ms-users:latest
+````
+
+Lo mismo haremos con la imagen de cursos, al final debemos tener:
+
+````bash
+$ docker image ls
+REPOSITORY                TAG       IMAGE ID       CREATED      SIZE
+magadiflo/dk-ms-users     latest    9750159d18ce   2 days ago   387MB
+magadiflo/dk-ms-courses   latest    a66bf68642d1   3 days ago   385MB
+````
+
+**NOTA**
+> Lo que hacemos para bajar las imágenes es hacer un `docker pull` pero no es necesario, ya que cuando hagamos un
+> `docker container run ... some-image:tag` donde al final definamos la imagen a usar, Docker al no encontrar la imagen
+> en local `automáticamente` irá a `Docker Hub` a descargarlo. Eso mismo aplica si estamos trabajando con un archivo
+> `Dockerfile` o `compose.yml` donde hacemos uso de imágenes.
+>
+> Si en nuestro local ya tenemos una imagen que bajamos de docker hub, y luego la imagen en el repositorio remoto se
+> actualiza, ahí sí debemos bajar con `docker pull` la imagen actualizada, ya que como inicialmente teníamos en local
+> la imagen ya bajada, docker no la actualiza por nosotros sino más bien reutiliza la imagen que encuentre en local.
