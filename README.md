@@ -1760,3 +1760,90 @@ magadiflo/dk-ms-courses   latest    a66bf68642d1   3 days ago   385MB
 > Si en nuestro local ya tenemos una imagen que bajamos de docker hub, y luego la imagen en el repositorio remoto se
 > actualiza, ahí sí debemos bajar con `docker pull` la imagen actualizada, ya que como inicialmente teníamos en local
 > la imagen ya bajada, docker no la actualiza por nosotros sino más bien reutiliza la imagen que encuentre en local.
+
+## Modificando compose.yml para obtener imágenes desde repositorio Docker Hub
+
+Actualmente, en nuestro archivo `compose.yml`, para nuestros microservicios usuarios y cursos, estamos construyendo las
+imágenes usando el `Dockerfile` de cada microservicio. Veamos un extracto para el servicio dk-ms-users de cómo es que
+estamos construyendo la imagen:
+
+````yaml
+...
+dk-ms-users:
+  container_name: dk-ms-users
+  build:
+    context: .
+    dockerfile: ./business-domain/dk-ms-users/Dockerfile
+  image: dk-ms-users:latest
+...
+````
+
+**DONDE**
+
+- En la opción de `build` definimos el contexto y la ubicación del Dockerfile.
+- En la opción de `image` definimos el nombre de la imagen que será construida.
+
+En esta sección, en vez de construir la imagen, la obtendremos de forma remota desde `Docker Hub`, similar a cómo
+obtenemos las imágenes de `mysql:8` y `postgres:14-alpine`. Para eso, partiremos desde cero imágenes en nuestra
+plataforma local de Docker:
+
+````bash
+$ docker image ls
+REPOSITORY   TAG       IMAGE ID   CREATED   SIZE
+````
+
+Realizamos las modificaciones a los servicios `dk-ms-users` y `dk-ms-courses` del archivo `compose.yml` para que traiga
+las imágenes desde `Docker Hub`:
+
+````yaml
+services:
+  #...
+  dk-ms-users:
+    container_name: dk-ms-users
+    #    build:
+    #      context: .
+    #      dockerfile: ./business-domain/dk-ms-users/Dockerfile
+    image: magadiflo/dk-ms-users:latest
+  #...
+  dk-ms-courses:
+    container_name: dk-ms-courses
+    #    build:
+    #      context: .
+    #      dockerfile: ./business-domain/dk-ms-courses/Dockerfile
+    image: magadiflo/dk-ms-courses:latest
+#...
+````
+
+Entonces, como ahora traerémos las imágenes de `Docker Hub` ya no necesitamos usar la opción `build` por eso lo dejamos
+comentado solo para tenerlo de referencia, por otro lado, solo dejamos la opción `image` que en combinación con el
+`build`, el image permitía darle un nombre a la imagen que se estaba construyendo, pero ahora, en `image` colocamos
+el nombre del repositorio y la imagen que vamos a bajar desde `Docker Hub`.
+
+Luego de haber modificado el `compose.yml` ejecutamos el `compose` para levantar contenedores y veremos que en
+automático se empezarán a descargar las imágenes:
+
+````bash
+$ docker compose up -d
+✔ postgres-14 8 layers [⣿⣿⣿⣿⣿⣿⣿⣿]      0B/0B      Pulled
+  ✔ 96526aa774ef Pull complete
+  ...
+  ✔ 1c5e4ba76017 Pull complete
+✔ mysql-8 10 layers [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿]      0B/0B      Pulled
+  ✔ 8e0176adc18c Pull complete
+  ...
+  942bef62a146 Pull complete
+✔ dk-ms-courses 2 layers [⣿⣿]      0B/0B      Pulled
+  ✔ 9e7c76d7aa5e Already exists
+  ✔ a21623b8dfab Already exists
+✔ dk-ms-users 6 layers [⣿⣿⣿⣿⣿⣿]      0B/0B      Pulled
+  ✔ 5843afab3874 Already exists
+  ...
+  ✔ d69dada5da05 Already exists
+[+] Building 0.0s (0/0)
+[+] Running 5/5
+✔ Network spring-net       Created
+✔ Container postgres-14    Started
+✔ Container mysql-8        Started
+✔ Container dk-ms-users    Started
+✔ Container dk-ms-courses  Started
+````

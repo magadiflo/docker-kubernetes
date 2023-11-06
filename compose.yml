@@ -27,10 +27,10 @@ services:
       - spring-net
   dk-ms-users:
     container_name: dk-ms-users
-    build:
-      context: .
-      dockerfile: ./business-domain/dk-ms-users/Dockerfile
-    image: dk-ms-users:latest
+    #    build:
+    #      context: .
+    #      dockerfile: ./business-domain/dk-ms-users/Dockerfile
+    image: magadiflo/dk-ms-users:latest
     ports:
       - 8001:8001
     env_file: ./business-domain/dk-ms-users/.env
@@ -41,10 +41,10 @@ services:
     restart: always
   dk-ms-courses:
     container_name: dk-ms-courses
-    build:
-      context: .
-      dockerfile: ./business-domain/dk-ms-courses/Dockerfile
-    image: dk-ms-courses:latest
+    #    build:
+    #      context: .
+    #      dockerfile: ./business-domain/dk-ms-courses/Dockerfile
+    image: magadiflo/dk-ms-courses:latest
     ports:
       - 8002:8002
     env_file: ./business-domain/dk-ms-courses/.env
