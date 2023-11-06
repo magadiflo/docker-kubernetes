@@ -1036,3 +1036,814 @@ valores ENV pueden ser anulados al iniciar un contenedor.
 A continuación se muestra el resumen entre ARG vs ENV:
 
 ![11.arguments-environment](./assets/11.arguments-environment.png)
+
+---
+
+# Sección 11: Docker Compose: Orquestador para definir y ejecutar multi-contenedores
+
+---
+
+## [Docker Compose overview](https://docs.docker.com/compose/)
+
+Compose es una herramienta para definir y ejecutar aplicaciones Docker multicontenedor. Con Compose, utilizas un archivo
+YAML para configurar los servicios de tu aplicación. Luego, con un solo comando, creas e inicias todos los servicios a
+partir de tu configuración.
+
+Compose funciona en todos los entornos; producción, staging, desarrollo, pruebas, así como flujos de trabajo CI. También
+dispone de comandos para gestionar todo el ciclo de vida de tu aplicación:
+
+- Iniciar, detener y reconstruir servicios
+- Ver el estado de los servicios en ejecución
+- Transmitir la salida de registro de los servicios en ejecución
+- Ejecutar un comando puntual en un servicio
+
+Las características clave de Compose que lo hacen eficaz son:
+
+- Disponer de múltiples entornos aislados en un único host
+- Conservar los datos de volumen cuando se crean contenedores
+- Recrear sólo los contenedores que han cambiado
+- Soportar variables y mover una composición entre entornos
+
+![13.docker-compose](./assets/13.docker-compose.png)
+
+- Docker Compose `NO` es adecuado para administrar Múltiples Contenedores en `diferentes máquinas` (diferentes hosts).
+- El uso ideal de Docker Compose es para una sola máquina.
+- `Kubernetes`, tiene el concepto de Docker Compose, pero es más poderoso porque ya es un cluster con múltiples
+  máquinas,
+  este `sí es adecuado` para ejecutar múltiples contenedores en `múltiples máquinas` o hosts.
+
+## Creando archivo docker compose y definiendo contenedores de Bases de Datos
+
+### [Compose file](https://docs.docker.com/compose/compose-file/03-compose-file/)
+
+Antes de empezar a crear el archivo `compose.yml` (en versiones anteriores era `docker-compose.yml`) veamos algunos
+aspectos sobre él.
+
+El archivo Compose es un archivo YAML que define:
+
+- Version `(Optional)`
+- Services `(Required)`
+- Networks
+- Volumes
+- Configs
+- Secrets
+
+La ruta predeterminada para un archivo **Compose** es `compose.yaml` (preferido) o `compose.yml` que **se coloca en el
+directorio de trabajo.** Compose también admite `docker-compose.yaml` y `docker-compose.yml` **para la compatibilidad
+con versiones anteriores.** Si existen ambos archivos, **Compose** prefiere el canónico `compose.yaml`.
+
+### [Elemento de nivel superior Versión](https://docs.docker.com/compose/compose-file/04-version-and-name/)
+
+La propiedad de nivel superior versión está definida por la Especificación Compose para **compatibilidad con versiones
+anteriores.** Sólo tiene carácter informativo.
+
+**Compose no utiliza la versión para seleccionar un esquema exacto para validar el archivo Compose, sino que prefiere el
+esquema más reciente cuando está implementado.**
+
+### [Elemento de nivel superior de los Servicios](https://docs.docker.com/compose/compose-file/05-services/)
+
+Un `servicio `es una definición abstracta de un recurso informático dentro de una aplicación que **puede escalarse o
+sustituirse independientemente de otros componentes**.
+`Los servicios están respaldados por un conjunto de contenedores`, ejecutados por la plataforma de acuerdo con
+los requisitos de replicación y las restricciones de ubicación. **Dado que los servicios están respaldados por
+contenedores, se definen mediante una imagen Docker y un conjunto de argumentos de tiempo de ejecución.**
+`Todos los contenedores de un servicio se crean de forma idéntica con estos argumentos.`
+
+Un archivo Compose debe declarar un elemento de nivel superior de servicios como un mapa cuyas `claves` **son
+representaciones de cadenas de nombres de servicios**, y cuyos `valores` **son definiciones de servicios.**
+Una `definición de servicio` **contiene la configuración que se aplica a cada contenedor de servicio.**
+
+**Cada servicio también puede incluir una sección de** `build`, **que define cómo crear la imagen Docker para el
+servicio.** `Compose permite crear imágenes Docker utilizando esta definición de servicio.` Si no se utiliza,
+la sección de construcción se ignora y el archivo Compose sigue considerándose válido.
+
+**Cada servicio define restricciones y requisitos de tiempo de ejecución para ejecutar sus contenedores.** La sección
+de `deploy` agrupa estas restricciones y permite a la plataforma ajustar la estrategia de despliegue para adaptar mejor
+las necesidades de los contenedores a los recursos disponibles. Si no se implementa, la sección de despliegue se ignora
+y el archivo Compose sigue considerándose válido.
+
+A continuación se muestran algunos atributos usados dentro de un servicio:
+
+- `build`, especifica la configuración de compilación para crear una imagen de contenedor a partir del código fuente,
+  tal y como se define en la especificación de compilación de Compose.
+- `container_name`, es una cadena que especifica un nombre de contenedor personalizado, **en lugar de
+  un nombre generado por defecto.**
+- `volumes`, definen rutas de host de montaje o `volúmenes con nombre` que son accesibles por contenedores
+  de servicio. Puedes usar volúmenes para definir múltiples tipos de montajes; volumen, bind, tmpfs o npipe.
+
+  **IMPORTANTE**
+  > Para `reutilizar un volumen a través de múltiples servicios`, se debe declarar un `volumen con nombre` **en la clave
+  > de volúmenes de nivel superior.**
+  >
+  > `La declaración de volúmenes de nivel superior` permite **configurar volúmenes con nombre que pueden reutilizarse en
+  > varios servicios.** Para utilizar un volumen en varios servicios, debe conceder explícitamente acceso a cada
+  > servicio mediante el atributo volumes.
+
+- `networks`, capa que permite a los servicios comunicarse entre sí. `El elemento de nivel superior networks permite
+  configurar redes con nombre que pueden reutilizarse en varios servicios`. Para utilizar una red en varios servicios,
+  debes conceder explícitamente acceso a `cada servicio` utilizando el atributo `networks`.
+
+  > Podríamos no configurar explícitamente un `network` y en ese caso, por defecto, `Compose` configura una única red
+  > para tu aplicación. Cada contenedor para un servicio se une a la red por defecto y es accesible por otros
+  > contenedores en esa red, y detectable por ellos en un nombre de host idéntico al nombre del contenedor.
+
+Luego de la explicación teórica anterior, llega el momento de crear nuestro archivo `compose.yml` en la raíz de nuestro
+proyecto `docker-kubernetes` (en versiones anteriores el archivo se llamaba `docker-compose.yml`).
+
+````yaml
+services:
+  mysql-8:
+    container_name: mysql-8
+    image: mysql:8
+    ports:
+      - 3307:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: magadiflo
+      MYSQL_DATABASE: db_dk_ms_users
+    volumes:
+      - data-mysql:/var/lib/mysql
+    restart: always
+    networks:
+      - spring-net
+  postgres-14:
+    container_name: postgres-14
+    image: postgres:14-alpine
+    ports:
+      - 5433:5432
+    environment:
+      POSTGRES_PASSWORD: magadiflo
+      POSTGRES_DB: db_dk_ms_courses
+    volumes:
+      - data-postgres:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - spring-net
+volumes:
+  data-mysql:
+    name: data-mysql
+    external: true
+  data-postgres:
+    name: data-postgres
+    external: true
+networks:
+  spring-net:
+    name: spring-net
+````
+
+**DONDE**
+
+- el archivo `compose.yml` anterior solo tiene definido los servicios para las dos bases de datos usadas hasta ahora.
+- Ambos servicios `mysql-8` y `postgres-14` utilizan una imagen pública de base de datos que se extrae del registro
+  de `Docker Hub`.
+- Como todos los servicios estarán en la misma red `spring-net`, debemos definir
+  el `elemento de nivel superior networks` y luego cada servicio utilizar la red definida.
+- En nuestro caso, trabajaremos con `volumenes con nombre: data-mysql y data-postgres`, las cuales, además de ser
+  definidas en cada servicio, deberán ser definidas en `la declaración de volúmenes de nivel superior`. Como en
+  nuestro caso ya habíamos creado los volúmenes manualmente, es necesario que en `la declaración de volúmenes
+  de nivel superior` debamos especificar `external: true`, eso es para que `docker compose` no cree el volumen, sino
+  más bien, reutilice el que ya tenemos.
+
+## Añadiendo contenedores de microservicios dk-ms-users y dk-ms-courses
+
+En el apartado anterior agregamos al archivo `compose.yml` los servicios para nuestros contenedores de bases de datos.
+En esta sección veremos cómo agregar los servicios para los contenedores de nuestros microservicios. Pero antes,
+observemos las imágenes que tenemos en la plataforma de `Docker`, ya que haremos uso de las imágenes construídas de
+nuestros microservicios que actualmente tenemos disponibles.
+
+````bash
+$ docker image ls
+REPOSITORY      TAG         IMAGE ID       CREATED        SIZE
+dk-ms-courses   latest      463c10aa1fbd   24 hours ago   385MB
+dk-ms-users     latest      04781bfdc1f1   24 hours ago   387MB
+mysql           8           a3b6608898d6   10 days ago    596MB
+postgres        14-alpine   ed089947c1bd   4 weeks ago    236MB
+````
+
+Ahora sí, veamos la configuración agregada:
+
+````yaml
+services:
+  #mysql-8 service
+  #postgres-14 service
+
+  dk-ms-users:
+    container_name: dk-ms-users
+    image: dk-ms-users:latest
+    ports:
+      - 8001:8001
+    env_file: ./business-domain/dk-ms-users/.env
+    networks:
+      - spring-net
+    depends_on:
+      - mysql-8
+    restart: always
+  dk-ms-courses:
+    container_name: dk-ms-courses
+    image: dk-ms-courses:latest
+    ports:
+      - 8002:8002
+    env_file: ./business-domain/dk-ms-courses/.env
+    networks:
+      - spring-net
+    depends_on:
+      - postgres-14
+      - dk-ms-users
+    restart: always
+
+#Aquí van los elementos de nivel superior volumes and networks
+````
+
+**DONDE**
+
+- Hemos agregado 2 servicios `dk-ms-users` y `dk-ms-courses`.
+- En `image` estamos definiendo la imagen que vamos a usar y que precisamente son los que tenemos en la plataforma
+  de `Docker` de nuestra máquina local. ¡Ojo! actualmente tenemos construidas las imágenes, pero más adelante veremos
+  cómo usar `compose.yml` para que inicie la construcción de la imagen apoyándonos del `Dockerfile`.
+- La opcion `depends_on` hace referencia al servicio del cual depende. Por ejemplo, servicio `dk-ms-courses` depende de
+  los servicios `postgres-14` y `dk-ms-users`, es decir para que se genere el contenedor del servicio `dk-ms-courses`
+  primero deben estar listos los dos servicios del que depende.
+- `restart` define la política que la plataforma aplica al terminar el contenedor.
+  > - `no`: La política de reinicio por defecto. No reinicia el contenedor bajo ninguna circunstancia.
+  >- `always`: La política siempre reinicia el contenedor hasta su eliminación.
+  >- `on-failure`: La política reinicia el contenedor si el código de salida indica un error.
+  >- `unless-stopped`: La política reinicia el contenedor independientemente del código de salida, pero deja de
+     reiniciarlo cuando el servicio se detiene o se elimina.
+
+## Ejecutando todo con docker compose up y down para detener y eliminar todo
+
+Antes de ejecutar el archivo `compose.yml` necesitamos asegurarnos de no tener levantado ningún contenedor que estamos
+usando en los servicios. Además, verificaremos que no tengamos la red `spring-net`, ya que haremos que docker compose
+lo cree por nosotros. Finalmente, verificaremos que los volúmenes creados en secciones anteriores y que en nuestro
+archivo `compose.yml` están siendo usados, aún existan:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+
+$ docker network ls
+NETWORK ID     NAME      DRIVER    SCOPE
+1f87ff640a19   bridge    bridge    local
+6dac92048c81   host      host      local
+4eea7e69fe4f   none      null      local
+
+$ docker volume ls
+DRIVER    VOLUME NAME
+local     42a0a66edf9b44ace0b4afd15093693775ae65224b4a6f1ad9bbd526caac1ca8
+local     835dff164f596335497eac94a448fbd3760fb204131f13b06afb02c8a6e7274b
+local     4548e93f639bc54e07342cfd783dab2fa9a8a120ba58cd8f3ca187e438551302
+local     5875c2ae3923ef62ee137e612a1912a4fcf8d78d0cb69541f586bc8129bd042c
+local     849742d75f37588c2bb8f48917a13e0dedeaa0277c78bb13709ce78a0eae4e76
+local     b422c2733064096c62568cd7d2bc70ed39a6290d02c3f1ba481542f3a73a199b
+local     data-mysql
+local     data-postgres
+````
+
+Listo, una vez que hemos comprobado lo antes mencionado llega el momento de ejecutar el archivo `compose.yml`. Es
+necesario estar ubicados mediante la línea de comandos en la raíz del proyecto, donde precisamente está el
+archivo `compose.yml`:
+
+````bash
+$ docker compose up -d
+[+] Building 0.0s (0/0)                                  docker:default
+[+] Running 5/5
+✔ Network spring-net       Created                                0.1s
+✔ Container mysql-8        Started                                0.2s
+✔ Container postgres-14    Started                                0.2s
+✔ Container dk-ms-users    Started                                0.1s
+✔ Container dk-ms-courses  Started                                0.1s
+````
+
+**DONDE**
+
+- `docker compose up`, construye, (re)crea, inicia y adjunta a contenedores para un servicio. A menos que ya se estén
+  ejecutando, este comando también inicia cualquier servicio vinculado.
+- `-d o --detach`, inicia los contenedores en segundo plano y los deja funcionando.
+
+Verificamos que efectivamente todos los contenedores estén levantados:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE                  COMMAND                  CREATED         STATUS         PORTS                               NAMES
+d14318bd941e   dk-ms-courses:latest   "java -jar app.jar"      2 minutes ago   Up 2 minutes   0.0.0.0:8002->8002/tcp              dk-ms-courses
+ef3203241bde   dk-ms-users:latest     "java -jar app.jar"      2 minutes ago   Up 2 minutes   0.0.0.0:8001->8001/tcp              dk-ms-users
+54358691b4b7   mysql:8                "docker-entrypoint.s…"   2 minutes ago   Up 2 minutes   33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+e0bfac0fa90b   postgres:14-alpine     "docker-entrypoint.s…"   2 minutes ago   Up 2 minutes   0.0.0.0:5433->5432/tcp              postgres-14
+````
+
+Comprobamos que docker compose ha creado la red `spring-net`:
+
+````bash
+$ docker network ls
+NETWORK ID     NAME         DRIVER    SCOPE
+d0ae995003c3   bridge       bridge    local
+6dac92048c81   host         host      local
+4eea7e69fe4f   none         null      local
+0ec3ddfd5777   spring-net   bridge    local
+````
+
+Ahora que tenemos todo levantado realizamos las pruebas para ver si los microservicios se están
+comunicando correctamente y están accediendo a las bases de datos sin problemas. Para eso realizaremos una única
+consulta que probará ambos microservicios y ambas bases de datos:
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"Rocio\", \"email\": \"rocio@gmail.com\", \"password\": \"12345\"}" http://localhost:8002/api/v1/courses/create-user-and-assign-to-course/1 | jq
+
+>
+< HTTP/1.1 201
+< Location: http://localhost:8002/api/v1/courses/create-user-and-assign-to-course/1/7
+< Content-Type: application/json
+<
+{
+  "id": 7,
+  "name": "Rocio",
+  "email": "rocio@gmail.com",
+  "password": "12345"
+}
+````
+
+Como ya comprobamos el funcionamiento de los contenedores, ahora vamos a detenerlos con `docker compose down`, al
+hacerlo, docker compose eliminará todo lo que ha creado:
+
+````bash
+$ docker compose down
+[+] Running 5/5
+✔ Container dk-ms-courses  Removed
+✔ Container dk-ms-users    Removed
+✔ Container postgres-14    Removed
+✔ Container mysql-8        Removed
+✔ Network spring-net       Removed
+````
+
+Verificamos que los contenedores fueron eliminados, lo mismo con la red `spring-net`:
+
+````bash
+$ docker container ls -a
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+
+$ docker network ls
+NETWORK ID     NAME      DRIVER    SCOPE
+d0ae995003c3   bridge    bridge    local
+6dac92048c81   host      host      local
+4eea7e69fe4f   none      null      local
+````
+
+Finalmente, verificamos que los volúmenes aún siguen existiendo, ya que estamos usando `volúmenes con nombres`:
+
+````bash
+$ docker volume ls
+DRIVER    VOLUME NAME
+local     42a0a66edf9b44ace0b4afd15093693775ae65224b4a6f1ad9bbd526caac1ca8
+local     835dff164f596335497eac94a448fbd3760fb204131f13b06afb02c8a6e7274b
+local     4548e93f639bc54e07342cfd783dab2fa9a8a120ba58cd8f3ca187e438551302
+local     5875c2ae3923ef62ee137e612a1912a4fcf8d78d0cb69541f586bc8129bd042c
+local     849742d75f37588c2bb8f48917a13e0dedeaa0277c78bb13709ce78a0eae4e76
+local     b422c2733064096c62568cd7d2bc70ed39a6290d02c3f1ba481542f3a73a199b
+local     data-mysql
+local     data-postgres
+````
+
+## Build imagen en docker compose
+
+Hasta ahora hemos estado usando en el archivo `compose.yml` las imágenes ya construidas de los microservicios
+`dk-ms-users` y `dk-ms-courses`, pero eso teníamos que hacelo manualmente. Ahora, podemos usar el mismo
+archivo `compose.yml` para construir las imágenes a partir del archivo `Dockerfile` de cada microservicio. Veamos qué
+modificaciones tenemos que hacer en el `compose.yml`:
+
+````yaml
+services:
+  # More services
+  dk-ms-users:
+    container_name: dk-ms-users
+    build:
+      context: .
+      dockerfile: ./business-domain/dk-ms-users/Dockerfile
+    image: dk-ms-users:latest
+    # More options
+  dk-ms-courses:
+    container_name: dk-ms-courses
+    build:
+      context: .
+      dockerfile: ./business-domain/dk-ms-courses/Dockerfile
+    image: dk-ms-courses:latest
+
+# More options
+````
+
+**DONDE**
+
+- `build`, opciones de configuración que se aplican en tiempo de compilación.
+- `context: .`, es el contexto a partir del cual se construirá la imagen. El punto `(.)` indica el directorio actual, o
+  sea el directorio raíz del proyecto en la que se encuentra el archivo `compose.yml`.
+- `dockerfile`, indicamos la ruta del archivo `Dockerfile` para construir la imagen.
+- Si especifica `image` además de `build`, entonces `compose` nombra la imagen construida con el valor definido en la
+  opción `image`. Por ejemplo, para el servicio `dk-ms-users`, al construir la imagen a partir del `Dockerfile` el
+  nombre que tendrá la imagen construida será `dk-ms-users` y tendrá como
+  tag `latest`. [Fuente: docker docs](https://docs.docker.com/compose/compose-file/compose-file-v3/#build)
+
+Listo, ya tenemos configurado los archivos `Dockerfile` dentro del `compose.yml`. Antes de verificar los cambios
+realizados es necesario dejar todo limpio:
+
+````bash
+$ docker image ls
+REPOSITORY   TAG       IMAGE ID   CREATED   SIZE
+````
+
+Ahora, ejecutemos el comando `docker compose up -d` para levantar todos los contendores. Esta vez deberá construirse
+las imágenes de los servicios utilizando el dockerfile:
+
+````bash
+$ docker compose up -d
+! dk-ms-users Warning
+! dk-ms-courses Warning
+✔ mysql-8 10 layers [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿]      0B/0B      Pulled
+✔ postgres-14 8 layers [⣿⣿⣿⣿⣿⣿⣿⣿]      0B/0B      Pulled
+....
+[+] Running 5/5
+✔ Network spring-net       Created
+✔ Container mysql-8        Started
+✔ Container postgres-14    Started
+✔ Container dk-ms-users    Started
+✔ Container dk-ms-courses  Started
+````
+
+Listamos las imágenes y contenedores. Notar que las imágenes tomaron el nombre que definimos en la opción `image`:
+
+````bash
+$ docker image ls
+REPOSITORY      TAG         IMAGE ID       CREATED        SIZE
+dk-ms-users     latest      be99ea9dc9e2   2 hours ago    387MB
+dk-ms-courses   latest      a66bf68642d1   32 hours ago   385MB
+mysql           8           a3b6608898d6   10 days ago    596MB
+postgres        14-alpine   ed089947c1bd   4 weeks ago    236MB
+
+$ docker container ls -a
+CONTAINER ID   IMAGE                  COMMAND                  CREATED         STATUS         PORTS                               NAMES
+25280fedb158   dk-ms-courses:latest   "java -jar app.jar"      3 minutes ago   Up 3 minutes   0.0.0.0:8002->8002/tcp              dk-ms-courses
+cc2b8305bf4b   dk-ms-users:latest     "java -jar app.jar"      3 minutes ago   Up 3 minutes   0.0.0.0:8001->8001/tcp              dk-ms-users
+290e695d57f7   postgres:14-alpine     "docker-entrypoint.s…"   3 minutes ago   Up 3 minutes   0.0.0.0:5433->5432/tcp              postgres-14
+546c667a0a88   mysql:8                "docker-entrypoint.s…"   3 minutes ago   Up 3 minutes   33060/tcp, 0.0.0.0:3307->3306/tcp   mysql-8
+````
+
+### Reconstruyendo imagen con el archivo compose luego de cambiar código fuente
+
+Hasta el momento están ejecutándose todos los contenedores, ahora nos hacemos la siguiente pregunta
+**¿qué pasa si realizamos un cambio en el código fuente?**, bueno como estamos usando `compose` simplemente detenemos
+con `docker compose down` y luego volvemos a levantar usando el comando `docker compose up --build -d`, note la
+bandera `--build`, **esta bandera va a obligar a construir las imágenes antes de iniciar los contenedores.** Si no
+colocamos la bandera `--build` docker compose verificará si existe la imagen y como existe, entonces compose no volverá
+a constuir la imagen sino tomará la que existe para crear los contenedores.
+
+Vamos a realizar una llamada al endpoint de usuarios y nos vamos a fijar en el log:
+
+````bash
+$ docker container logs dk-ms-users
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.1.4)
+
+...
+2023-11-04T06:33:30.545Z  INFO 1 --- [nio-8001-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2023-11-04T06:33:30.548Z  INFO 1 --- [nio-8001-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
+2023-11-04T06:33:30.756Z DEBUG 1 --- [nio-8001-exec-1] org.hibernate.SQL                        :
+    select
+        u1_0.id,
+        u1_0.email,
+        u1_0.name,
+        u1_0.password
+    from
+        users u1_0
+    where
+        u1_0.id=?
+````
+
+Listo, ahora modificaremos el código fuente de ese mismo microservicio, para ser exactos solo agregaré un mensaje por
+consola `"¡Cambio efectuado!"`. Una vez realizado el cambio bajaremos los contendores con el comando `down`:
+
+````bash
+$ docker compose down
+[+] Running 5/5
+✔ Container dk-ms-courses  Removed
+✔ Container postgres-14    Removed
+✔ Container dk-ms-users    Removed
+✔ Container mysql-8        Removed
+✔ Network spring-net       Removed
+````
+
+Ahora que los contenedores están removidos ejecutamos el comando para volverlos a levantar pero agregando esta vez
+la bandera `--build`, la cual va a obligar a construir las imágenes antes de iniciar los contenedores.
+
+````bash
+$ docker compose up --build -d
+...
+[+] Building 25.6s (36/36) FINISHED
+[+] Running 5/5
+✔ Network spring-net       Created
+✔ Container mysql-8        Started
+✔ Container postgres-14    Started
+✔ Container dk-ms-users    Started
+✔ Container dk-ms-courses  Started
+````
+
+Verificamos si están los cambios realizados en el código fuente, obviamente hay que hacer una petición al endpoint del
+microservicio usuarios para ver si se muestra el mensaje en consola:
+
+````bash
+$ docker container logs dk-ms-users
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.1.4)
+
+...
+2023-11-04T06:43:48.246Z  INFO 1 --- [nio-8001-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2023-11-04T06:43:48.255Z  INFO 1 --- [nio-8001-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 8 ms
+¡Cambio efectuado!
+2023-11-04T06:43:48.519Z DEBUG 1 --- [nio-8001-exec-1] org.hibernate.SQL                        :
+    select
+        u1_0.id,
+        u1_0.email,
+        u1_0.name,
+        u1_0.password
+    from
+        users u1_0
+    where
+        u1_0.id=?
+````
+
+Como observamos, ahora se muestra el **cambio que hicimos en el código fuente**, eso significa que nuestra imagen sí se
+volvió a construir.
+
+---
+
+# Sección 12: Docker Hub: Repositorio para compartir imágenes en la nube
+
+---
+
+`Docker Hub` es un repositorio en la nube que permite compartir, almacenar e implementar imágenes Docker.
+
+## Creando nuestro repositorio y enviando imagen a Docker Hub con push
+
+### Creando repositorio en Docker Hub
+
+En esta sección almacenaremos las imágenes de nuestros microservicios en `Docker Hub`. Para eso necesitamos ingresar
+a la web de [hub.docker](https://hub.docker.com/) con nuestras credenciales previamente registradas.
+
+Para no repetir los pasos, mostraré cómo haremos la subida de las imágenes a Docker Hub con el
+microservicio `dk-ms-users`:
+
+1. Crear un repositorio para la imagen a subir. En este caso, el nombre del repositorio a crear será igual que el nombre
+   del microservicio `dk-ms-users`:
+
+   ![Creando repositorio](./assets/14.creando-repositorio.png)
+
+2. Repositorio recién creado para el microservicio dk-ms-users
+
+   ![Repositorio creado](./assets/15.repositorio-creado.png)
+
+**NOTA**
+> Hay dos cosas importantes que debemos ver luego de la creación del repositorio:
+>
+> 1. El nombre completo de la imagen a subir debe ser igual al nombre del usuario / nombre del repositorio. Es decir, la
+     imagen a pushear desde local debe tener ese nombre `magadiflo/dk-ms-users`.
+> 2. Observemos cómo es que, luego de la creación del repositorio nos muestra el comando de ejemplo para poder enviar a
+     este repositorio una nueva etiqueta:
+>
+> `docker push magadiflo/dk-ms-users:tagname`
+
+### Enviando imagen desde local hacia Docker Hub
+
+Verificamos qué imágenes tenemos en local:
+
+````bash
+$ docker image ls
+REPOSITORY      TAG         IMAGE ID       CREATED       SIZE
+dk-ms-users     latest      9750159d18ce   2 days ago    387MB
+dk-ms-courses   latest      a66bf68642d1   3 days ago    385MB
+mysql           8           a3b6608898d6   12 days ago   596MB
+postgres        14-alpine   ed089947c1bd   4 weeks ago   236MB
+````
+
+Para este ejemplo, nos interesa la imagen `dk-ms-users` con tag `latest`, pero observemos que `NO tenemos el mismo
+nombre que nos solicita Docker Hub`, que como recordaremos es: `magadiflo/dk-ms-users` y en nuestro caso el nombre del
+repositorio en local solo dice `dk-ms-users` **¿qué podemos hacer?**
+
+1. **Primera forma**, podemos volver a crear una nueva imagen con el nombre requerido:
+
+    ````bash
+    $ docker build -t magadiflo/dk-ms-users . -f .\business-domain\dk-ms-users\Dockerfile
+    
+    $ docker image ls
+    REPOSITORY              TAG         IMAGE ID       CREATED       SIZE
+    dk-ms-users             latest      9750159d18ce   2 days ago    387MB
+    magadiflo/dk-ms-users   latest      57dbf1de4567   2 days ago    387MB
+    dk-ms-courses           latest      a66bf68642d1   3 days ago    385MB
+    mysql                   8           a3b6608898d6   12 days ago   596MB
+    postgres                14-alpine   ed089947c1bd   4 weeks ago   236MB
+    ````
+
+2. **Segunda forma**, a partir de una imagen existente la podemos volver a etiquetar:
+
+    ````bash
+    $ docker image ls
+    REPOSITORY      TAG         IMAGE ID       CREATED       SIZE
+    dk-ms-users     latest      9750159d18ce   2 days ago    387MB
+    dk-ms-courses   latest      a66bf68642d1   3 days ago    385MB
+    mysql           8           a3b6608898d6   12 days ago   596MB
+    postgres        14-alpine   ed089947c1bd   4 weeks ago   236MB
+   
+    $ docker tag dk-ms-users magadiflo/dk-ms-users
+   
+    $ docker image ls
+    REPOSITORY              TAG         IMAGE ID       CREATED       SIZE
+    dk-ms-users             latest      9750159d18ce   2 days ago    387MB
+    magadiflo/dk-ms-users   latest      9750159d18ce   2 days ago    387MB
+    dk-ms-courses           latest      a66bf68642d1   3 days ago    385MB
+    mysql                   8           a3b6608898d6   12 days ago   596MB
+    postgres                14-alpine   ed089947c1bd   4 weeks ago   236MB
+    ````
+
+   Si observamos el resultado anterior, luego de usar el `docker tag`, veremos que tenemos la imagen base (imagen del
+   cual se tomó para generar la nueva imagen) y la nueva imagen. Ambos tienen el mismo `IMAGE ID`:
+
+    ````bash
+    dk-ms-users             latest      9750159d18ce   2 days ago    387MB
+    magadiflo/dk-ms-users   latest      9750159d18ce   2 days ago    387MB 
+    ````
+
+Ahora que ya tenemos en nuestra máquina local la imagen con el nombre correcto que espera recibir el repositorio de
+`Docker Hub`, llega el momento de subir esa imagen.
+
+Si nunca nos hemos logueados mediante la terminal, debemos hacerlo:
+
+````bash
+$ docker login
+Log in with your Docker ID or email address to push and pull images from Docker Hub. If you don't have a Docker ID, head over to https://hub.docker.com/ to create one.
+You can log in with your password or a Personal Access Token (PAT). Using a limited-scope PAT grants better security and is required for organizations using SSO. Learn more at https://docs.docker.com/go/access-tokens/
+
+Username: magadiflo@gmail.com
+Password:
+Login Succeeded
+````
+
+Una vez logueados, podemos enviar nuestra imagen a docker hub:
+
+````bash
+$ docker push magadiflo/dk-ms-users
+Using default tag: latest
+The push refers to repository [docker.io/magadiflo/dk-ms-users]
+2bd2ae00f00a: Pushed
+334322edcbb5: Pushed
+8bfd963f363c: Pushed
+34f7184834b2: Mounted from library/openjdk
+5836ece05bfd: Mounted from library/openjdk
+72e830a4dff5: Mounted from library/openjdk
+latest: digest: sha256:3119dc0a31622211d8c9e00b9430be86b69cfacc939288665135590cdbaee43f size: 1577
+````
+
+**NOTA**
+> Por defecto, al no definir un tag específico, se utiliza el tag `latest`.
+
+Si revisamos el repositorio de `docker hub` veremos que nuestra imagen fue subida:
+
+![imagen-en-docker-hub](./assets/16.imagen-en-docker-hub.png)
+
+## Bajando imagen desde Docker Hub con pull
+
+Para esta sección empezaremos sin imágenes en nuestra plataforma local de docker:
+
+````bash
+$ docker image ls
+REPOSITORY   TAG       IMAGE ID   CREATED   SIZE
+````
+
+Ahora, bajaremos la imagen `magadiflo/dk-ms-users` desde `Docker Hub`:
+
+````bash
+$ docker pull magadiflo/dk-ms-users
+Using default tag: latest
+latest: Pulling from magadiflo/dk-ms-users
+5843afab3874: Already exists
+53c9466125e4: Already exists
+d8d715783b80: Already exists
+70f07e65e868: Already exists
+668c6b46a24e: Already exists
+d69dada5da05: Already exists
+Digest: sha256:3119dc0a31622211d8c9e00b9430be86b69cfacc939288665135590cdbaee43f
+Status: Downloaded newer image for magadiflo/dk-ms-users:latest
+docker.io/magadiflo/dk-ms-users:latest
+````
+
+Lo mismo haremos con la imagen de cursos, al final debemos tener:
+
+````bash
+$ docker image ls
+REPOSITORY                TAG       IMAGE ID       CREATED      SIZE
+magadiflo/dk-ms-users     latest    9750159d18ce   2 days ago   387MB
+magadiflo/dk-ms-courses   latest    a66bf68642d1   3 days ago   385MB
+````
+
+**NOTA**
+> Lo que hacemos para bajar las imágenes es hacer un `docker pull` pero no es necesario, ya que cuando hagamos un
+> `docker container run ... some-image:tag` donde al final definamos la imagen a usar, Docker al no encontrar la imagen
+> en local `automáticamente` irá a `Docker Hub` a descargarlo. Eso mismo aplica si estamos trabajando con un archivo
+> `Dockerfile` o `compose.yml` donde hacemos uso de imágenes.
+>
+> Si en nuestro local ya tenemos una imagen que bajamos de docker hub, y luego la imagen en el repositorio remoto se
+> actualiza, ahí sí debemos bajar con `docker pull` la imagen actualizada, ya que como inicialmente teníamos en local
+> la imagen ya bajada, docker no la actualiza por nosotros sino más bien reutiliza la imagen que encuentre en local.
+
+## Modificando compose.yml para obtener imágenes desde repositorio Docker Hub
+
+Actualmente, en nuestro archivo `compose.yml`, para nuestros microservicios usuarios y cursos, estamos construyendo las
+imágenes usando el `Dockerfile` de cada microservicio. Veamos un extracto para el servicio dk-ms-users de cómo es que
+estamos construyendo la imagen:
+
+````yaml
+...
+dk-ms-users:
+  container_name: dk-ms-users
+  build:
+    context: .
+    dockerfile: ./business-domain/dk-ms-users/Dockerfile
+  image: dk-ms-users:latest
+...
+````
+
+**DONDE**
+
+- En la opción de `build` definimos el contexto y la ubicación del Dockerfile.
+- En la opción de `image` definimos el nombre de la imagen que será construida.
+
+En esta sección, en vez de construir la imagen, la obtendremos de forma remota desde `Docker Hub`, similar a cómo
+obtenemos las imágenes de `mysql:8` y `postgres:14-alpine`. Para eso, partiremos desde cero imágenes en nuestra
+plataforma local de Docker:
+
+````bash
+$ docker image ls
+REPOSITORY   TAG       IMAGE ID   CREATED   SIZE
+````
+
+Realizamos las modificaciones a los servicios `dk-ms-users` y `dk-ms-courses` del archivo `compose.yml` para que traiga
+las imágenes desde `Docker Hub`:
+
+````yaml
+services:
+  #...
+  dk-ms-users:
+    container_name: dk-ms-users
+    #    build:
+    #      context: .
+    #      dockerfile: ./business-domain/dk-ms-users/Dockerfile
+    image: magadiflo/dk-ms-users:latest
+  #...
+  dk-ms-courses:
+    container_name: dk-ms-courses
+    #    build:
+    #      context: .
+    #      dockerfile: ./business-domain/dk-ms-courses/Dockerfile
+    image: magadiflo/dk-ms-courses:latest
+#...
+````
+
+Entonces, como ahora traerémos las imágenes de `Docker Hub` ya no necesitamos usar la opción `build` por eso lo dejamos
+comentado solo para tenerlo de referencia, por otro lado, solo dejamos la opción `image` que en combinación con el
+`build`, el image permitía darle un nombre a la imagen que se estaba construyendo, pero ahora, en `image` colocamos
+el nombre del repositorio y la imagen que vamos a bajar desde `Docker Hub`.
+
+Luego de haber modificado el `compose.yml` ejecutamos el `compose` para levantar contenedores y veremos que en
+automático se empezarán a descargar las imágenes:
+
+````bash
+$ docker compose up -d
+✔ postgres-14 8 layers [⣿⣿⣿⣿⣿⣿⣿⣿]      0B/0B      Pulled
+  ✔ 96526aa774ef Pull complete
+  ...
+  ✔ 1c5e4ba76017 Pull complete
+✔ mysql-8 10 layers [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿]      0B/0B      Pulled
+  ✔ 8e0176adc18c Pull complete
+  ...
+  942bef62a146 Pull complete
+✔ dk-ms-courses 2 layers [⣿⣿]      0B/0B      Pulled
+  ✔ 9e7c76d7aa5e Already exists
+  ✔ a21623b8dfab Already exists
+✔ dk-ms-users 6 layers [⣿⣿⣿⣿⣿⣿]      0B/0B      Pulled
+  ✔ 5843afab3874 Already exists
+  ...
+  ✔ d69dada5da05 Already exists
+[+] Building 0.0s (0/0)
+[+] Running 5/5
+✔ Network spring-net       Created
+✔ Container postgres-14    Started
+✔ Container mysql-8        Started
+✔ Container dk-ms-users    Started
+✔ Container dk-ms-courses  Started
+````

@@ -1,0 +1,66 @@
+services:
+  mysql-8:
+    container_name: mysql-8
+    image: mysql:8
+    ports:
+      - 3307:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: magadiflo
+      MYSQL_DATABASE: db_dk_ms_users
+    volumes:
+      - data-mysql:/var/lib/mysql
+    restart: always
+    networks:
+      - spring-net
+  postgres-14:
+    container_name: postgres-14
+    image: postgres:14-alpine
+    ports:
+      - 5433:5432
+    environment:
+      POSTGRES_PASSWORD: magadiflo
+      POSTGRES_DB: db_dk_ms_courses
+    volumes:
+      - data-postgres:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - spring-net
+  dk-ms-users:
+    container_name: dk-ms-users
+    #    build:
+    #      context: .
+    #      dockerfile: ./business-domain/dk-ms-users/Dockerfile
+    image: magadiflo/dk-ms-users:latest
+    ports:
+      - 8001:8001
+    env_file: ./business-domain/dk-ms-users/.env
+    networks:
+      - spring-net
+    depends_on:
+      - mysql-8
+    restart: always
+  dk-ms-courses:
+    container_name: dk-ms-courses
+    #    build:
+    #      context: .
+    #      dockerfile: ./business-domain/dk-ms-courses/Dockerfile
+    image: magadiflo/dk-ms-courses:latest
+    ports:
+      - 8002:8002
+    env_file: ./business-domain/dk-ms-courses/.env
+    networks:
+      - spring-net
+    depends_on:
+      - postgres-14
+      - dk-ms-users
+    restart: always
+volumes:
+  data-mysql:
+    name: data-mysql
+    external: true
+  data-postgres:
+    name: data-postgres
+    external: true
+networks:
+  spring-net:
+    name: spring-net
