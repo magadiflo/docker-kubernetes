@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dk-ms-users
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dk-ms-users
+  template:
+    metadata:
+      labels:
+        app: dk-ms-users
+    spec:
+      containers:
+        - image: magadiflo/dk-ms-users:latest
+          name: dk-ms-users
+          ports:
+            - containerPort: 8001
+          env:
+            - name: CONTAINER_PORT
+              value: '8001'
+            - name: DATA_BASE_HOST
+              value: mysql-8
+            - name: DATA_BASE_PORT
+              value: '3306'
+            - name: DATA_BASE_NAME
+              value: db_dk_ms_users
+            - name: DATA_BASE_USERNAME
+              value: root
+            - name: DATA_BASE_PASSWORD
+              value: magadiflo
+            - name: CLIENT_COURSES_HOST
+              value: dk-ms-courses
+            - name: CLIENT_COURSES_PORT
+              value: '8002'
