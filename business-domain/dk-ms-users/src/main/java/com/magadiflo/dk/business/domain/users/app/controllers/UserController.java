@@ -11,9 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping(path = "/api/v1/users")
@@ -32,11 +30,8 @@ public class UserController {
     }
 
     @GetMapping
-    public ResponseEntity<Map<String, Object>> getAllUsers() {
-        Map<String, Object> body = new HashMap<>();
-        body.put("users", this.userService.findAllUsers());
-        body.put("message", "Lista de todos los usuarios");
-        return ResponseEntity.ok(body);
+    public ResponseEntity<List<User>> getAllUsers() {
+        return ResponseEntity.ok(this.userService.findAllUsers());
     }
 
     @GetMapping(path = "/{id}")
