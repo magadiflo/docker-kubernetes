@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-14
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-14
+  template:
+    metadata:
+      labels:
+        app: postgres-14
+    spec:
+      containers:
+        - image: postgres:14-alpine
+          name: postgres-14
+          ports:
+            - containerPort: 5433
+          env:
+            - name: POSTGRES_PASSWORD
+              value: magadiflo
+            - name: POSTGRES_DB
+              value: db_dk_ms_courses
