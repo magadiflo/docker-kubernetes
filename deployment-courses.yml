@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dk-ms-courses
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dk-ms-courses
+  template:
+    metadata:
+      labels:
+        app: dk-ms-courses
+    spec:
+      containers:
+        - image: magadiflo/dk-ms-courses:latest
+          name: dk-ms-courses
+          ports:
+            - containerPort: 8002
+          env:
+            - name: CONTAINER_PORT
+              value: '8002'
+            - name: DATA_BASE_HOST
+              value: postgres-14
+            - name: DATA_BASE_PORT
+              value: '5432'
+            - name: DATA_BASE_NAME
+              value: db_dk_ms_courses
+            - name: DATA_BASE_USERNAME
+              value: postgres
+            - name: DATA_BASE_PASSWORD
+              value: magadiflo
+            - name: CLIENT_USERS_HOST
+              value: dk-ms-users
+            - name: CLIENT_USERS_PORT
+              value: '8001'
