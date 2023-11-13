@@ -3,6 +3,8 @@ package com.magadiflo.dk.business.domain.users.app.controllers;
 import com.magadiflo.dk.business.domain.users.app.models.entity.User;
 import com.magadiflo.dk.business.domain.users.app.services.IUserService;
 import jakarta.validation.Valid;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,9 +17,16 @@ import java.util.List;
 @RequestMapping(path = "/api/v1/users")
 public class UserController {
     private final IUserService userService;
+    private final ApplicationContext context;
 
-    public UserController(IUserService userService) {
+    public UserController(IUserService userService, ApplicationContext context) {
         this.userService = userService;
+        this.context = context;
+    }
+
+    @GetMapping(path = "/cause-error")
+    public void causeError() {
+        ((ConfigurableApplicationContext) this.context).close();
     }
 
     @GetMapping

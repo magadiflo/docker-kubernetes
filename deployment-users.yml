@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dk-ms-users
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dk-ms-users
+  template:
+    metadata:
+      labels:
+        app: dk-ms-users
+    spec:
+      containers:
+        - image: magadiflo/dk-ms-users:latest
+          name: dk-ms-users
+          ports:
+            - containerPort: 8001
+          env:
+            - name: CONTAINER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: dk-ms-users
+                  key: container_port
+            - name: DATA_BASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: dk-ms-users
+                  key: data_base_host
+            - name: DATA_BASE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: dk-ms-users
+                  key: data_base_port
+            - name: DATA_BASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: dk-ms-users
+                  key: data_base_name
+            - name: DATA_BASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: dk-ms-users
+                  key: data_base_username
+            - name: DATA_BASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dk-ms-users
+                  key: data_base_password
+            - name: CLIENT_COURSES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: dk-ms-users
+                  key: client_courses_host
+            - name: CLIENT_COURSES_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: dk-ms-users
+                  key: client_courses_port
