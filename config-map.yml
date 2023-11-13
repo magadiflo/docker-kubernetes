@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dk-ms-users
+data:
+  container_port: '8001'
+  data_base_host: mysql-8
+  data_base_port: '3306'
+  data_base_name: db_dk_ms_users
+  client_courses_host: dk-ms-courses
+  client_courses_port: '8002'
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dk-ms-courses
+data:
+  container_port: '8002'
+  data_base_host: postgres-14
+  data_base_port: '5432'
+  data_base_name: db_dk_ms_courses
+  client_users_host: dk-ms-users
+  client_users_port: '8001'
