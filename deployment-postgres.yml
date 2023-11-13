@@ -20,7 +20,7 @@ spec:
           env:
             - name: POSTGRES_PASSWORD
               valueFrom:
-                configMapKeyRef:
+                secretKeyRef:
                   name: dk-ms-courses
                   key: data_base_password
             - name: POSTGRES_DB

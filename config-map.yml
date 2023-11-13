@@ -7,8 +7,6 @@ data:
   data_base_host: mysql-8
   data_base_port: '3306'
   data_base_name: db_dk_ms_users
-  data_base_username: root
-  data_base_password: magadiflo
   client_courses_host: dk-ms-courses
   client_courses_port: '8002'
 
@@ -23,7 +21,5 @@ data:
   data_base_host: postgres-14
   data_base_port: '5432'
   data_base_name: db_dk_ms_courses
-  data_base_username: postgres
-  data_base_password: magadiflo
   client_users_host: dk-ms-users
   client_users_port: '8001'
