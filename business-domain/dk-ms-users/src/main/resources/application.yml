@@ -18,13 +18,15 @@ spring:
       hibernate:
         format_sql: true
 
+  cloud:
+    kubernetes:
+      secrets:
+        enable-api: true
+      discovery:
+        all-namespaces: true
+
 logging:
   level:
     org.hibernate.SQL: debug
   file:
     name: /app/logs/dk-ms-users.log
-
-microservices:
-  communication:
-    dk-ms-courses:
-      url: ${CLIENT_COURSES_HOST}:${CLIENT_COURSES_PORT}
