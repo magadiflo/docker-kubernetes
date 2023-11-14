@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: dk-ms-users
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: dk-ms-users
@@ -58,3 +58,11 @@ spec:
                 configMapKeyRef:
                   name: dk-ms-users
                   key: client_courses_port
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
