@@ -18,6 +18,11 @@ spec:
           ports:
             - containerPort: 8001
           env:
+            - name: SPRING_PROFILES_ACTIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: dk-ms-users
+                  key: spring_profiles_active
             - name: CONTAINER_PORT
               valueFrom:
                 configMapKeyRef:
