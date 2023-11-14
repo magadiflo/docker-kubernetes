@@ -40,6 +40,7 @@ public class UserController {
         body.put("users", this.userService.findAllUsers());
         body.put("podName", this.environment.getProperty("POD_NAME"));
         body.put("podIP", this.environment.getProperty("POD_IP"));
+        body.put("text", this.environment.getProperty("config.text"));
         return ResponseEntity.ok(body);
     }
 

@@ -25,6 +25,9 @@ spring:
       discovery:
         all-namespaces: true
 
+  config:
+    import: 'kubernetes:'
+
 logging:
   level:
     org.hibernate.SQL: debug
