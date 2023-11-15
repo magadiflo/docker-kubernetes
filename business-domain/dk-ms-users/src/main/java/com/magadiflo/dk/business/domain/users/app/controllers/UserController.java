@@ -5,28 +5,43 @@ import com.magadiflo.dk.business.domain.users.app.services.IUserService;
 import jakarta.validation.Valid;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping(path = "/api/v1/users")
 public class UserController {
     private final IUserService userService;
     private final ApplicationContext context;
+    private final Environment environment;
 
-    public UserController(IUserService userService, ApplicationContext context) {
+    public UserController(IUserService userService, ApplicationContext context, Environment environment) {
         this.userService = userService;
         this.context = context;
+        this.environment = environment;
     }
 
     @GetMapping(path = "/cause-error")
     public void causeError() {
         ((ConfigurableApplicationContext) this.context).close();
+    }
+
+    @GetMapping(path = "/info")
+    public ResponseEntity<Map<String, Object>> get() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("users", this.userService.findAllUsers());
+        body.put("podName", this.environment.getProperty("POD_NAME"));
+        body.put("podIP", this.environment.getProperty("POD_IP"));
+        body.put("text", this.environment.getProperty("config.text"));
+        return ResponseEntity.ok(body);
     }
 
     @GetMapping
