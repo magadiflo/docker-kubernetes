@@ -2,6 +2,9 @@ server:
   port: ${CONTAINER_PORT:8001}
 
 spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+
   application:
     name: dk-ms-users
 
@@ -18,13 +21,18 @@ spring:
       hibernate:
         format_sql: true
 
+  cloud:
+    kubernetes:
+      secrets:
+        enable-api: true
+      discovery:
+        all-namespaces: true
+
+  config:
+    import: 'kubernetes:'
+
 logging:
   level:
     org.hibernate.SQL: debug
   file:
     name: /app/logs/dk-ms-users.log
-
-microservices:
-  communication:
-    dk-ms-courses:
-      url: ${CLIENT_COURSES_HOST}:${CLIENT_COURSES_PORT}

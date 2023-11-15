@@ -1782,3 +1782,101 @@ $ curl -v -X POST -H "Content-Type: application/json" -d "{\"name\": \"Liz\", \"
   "password": "12345"
 }
 ````
+
+---
+
+# Sección 17: Kubernetes: Spring Cloud Kubernetes
+
+---
+
+## Configurando nuestros microservicios con Spring Cloud Kubernetes
+
+Para empezar a trabajar con `Spring Cloud Kubernetes` necesitamos agregar las dependencias en este microservicio, pero
+como estamos trabajando con `módulos de maven` agregaremos estas dependencias en el módulo padre de este microservicio:
+
+`pom.xml (business-domain)`
+
+````xml
+
+<dependencies>
+    <!--Other dependencies-->
+    <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-starter-kubernetes-client</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-starter-kubernetes-client-config</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-starter-kubernetes-client-loadbalancer</artifactId>
+    </dependency>
+</dependencies>
+````
+
+Ahora agregamos la anotación `@EnableDiscoveryClient` en el archivo principal de la aplicación. Esta anotación permite
+habilitar una implementación de `DiscoveryClient`:
+
+````java
+
+@EnableDiscoveryClient //<-- Anotación agregada
+@EnableFeignClients
+@SpringBootApplication
+public class DkMsCoursesApplication {
+    /* code */
+}
+````
+
+Empezamos a realizar cambios significativos en el código fuente, para ser exactos en la interfaz `IUserFeignClient`:
+
+````java
+
+@FeignClient(name = "dk-ms-users", path = "/api/v1/users")
+public interface IUserFeignClient {
+    /* code */
+}
+````
+
+Lo que quitamos del código anterior fue: `url = "${microservices.communication.dk-ms-users.url}`, es decir ahora
+ya no necesitamos de esta url, porque ahora usaremos el `nombre del microservicio` como dominio, en reemplazo de
+dicha `url`. Recordemos que el nombre del microservicio la definimos en el `application.yml`. También es importante
+observar que el `name = "dk-ms-users"` del `@FefignClient` debe coincidir con el nombre del microservicio con el que
+nos vamos a comunicar, además el nombre del servicio de kubernetes también debe ser el mismo.
+
+`@FeignClient` tiene características de load balancer, entonces tal solo colocando la dependencia
+`spring-cloud-starter-kubernetes-client-loadbalancer` en el `pom.xml`, automáticamente `@FeignClient` realizará balanceo
+de carga.
+
+Como quitamos de la interfaz `IUserFeignClient` el atributo `url` que tenía definido una propiedad del
+`application.yml`, eso quiere decir que dicha propiedad (microservices.communication.dk-ms-users.url) ya no lo usaremos, 
+así que procedemos a eliminarlo del `application.yml`.
+
+Lo que sí debemos agregar es una configuración adicional en el `application.yml`:
+
+````yaml
+# Other configurations
+spring:
+  # Other properties
+  cloud:
+    kubernetes:
+      secrets:
+        enable-api: true
+      discovery:
+        all-namespaces: true
+# Other configurations
+````
+
+Luego de haber realizado varias modificaciones al código fuente, debemos volver a construir la imagen:
+
+````bash
+$ docker build -t dk-ms-courses . -f .\business-domain\dk-ms-courses\Dockerfile
+[+] Building 136.4s (20/20) FINISHED
+````
+
+Renombramos la imagen para poder subirlo a `Docker Hub`:
+
+````bash
+$ docker tag dk-ms-courses magadiflo/dk-ms-courses
+$ docker push magadiflo/dk-ms-courses
+````
