@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dk-ms-spring-cloud-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dk-ms-spring-cloud-gateway
+  template:
+    metadata:
+      labels:
+        app: dk-ms-spring-cloud-gateway
+    spec:
+      containers:
+        - image: magadiflo/dk-ms-spring-cloud-gateway:latest
+          name: dk-ms-spring-cloud-gateway
+          ports:
+            - containerPort: 8090
+          env:
+            - name: CONTAINER_PORT
+              value: '8090'
