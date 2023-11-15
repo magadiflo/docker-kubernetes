@@ -1,0 +1,6 @@
+server:
+  port: ${CONTAINER_PORT:8090}
+
+spring:
+  application:
+    name: dk-ms-spring-cloud-gateway

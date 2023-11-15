@@ -14,4 +14,8 @@
 
     <packaging>pom</packaging>
 
+    <modules>
+        <module>dk-ms-spring-cloud-gateway</module>
+    </modules>
+
 </project>
