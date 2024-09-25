@@ -1,5 +1,6 @@
 package dev.magadiflo.user.app.service.impl;
 
+import dev.magadiflo.user.app.exception.EmailAlreadyExistsException;
 import dev.magadiflo.user.app.exception.UserNotFound;
 import dev.magadiflo.user.app.mapper.UserMapper;
 import dev.magadiflo.user.app.model.dto.UserRequest;
@@ -40,6 +41,9 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse saveUser(UserRequest userRequest) {
+        if (this.userRepository.existsByEmail(userRequest.getEmail())) {
+            throw new EmailAlreadyExistsException(userRequest.getEmail());
+        }
         User userDB = this.userRepository.save(this.userMapper.toUserEntity(userRequest));
         return this.userMapper.toUserResponse(userDB);
     }
@@ -48,7 +52,13 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserResponse updateUser(Long userId, UserRequest userRequest) {
         return this.userRepository.findById(userId)
-                .map(userDB -> this.userMapper.updateUser(userRequest, userDB))
+                .map(userDB -> {
+                    if (!userRequest.getEmail().equalsIgnoreCase(userDB.getEmail()) &&
+                        this.userRepository.existsByEmail(userRequest.getEmail())) {
+                        throw new EmailAlreadyExistsException(userRequest.getEmail());
+                    }
+                    return this.userMapper.updateUser(userRequest, userDB);
+                })
                 .map(this.userRepository::save)
                 .map(this.userMapper::toUserResponse)
                 .orElseThrow(() -> new UserNotFound(userId));

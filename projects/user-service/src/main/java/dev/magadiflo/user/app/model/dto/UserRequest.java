@@ -2,7 +2,6 @@ package dev.magadiflo.user.app.model.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.*;
 
 @ToString
@@ -13,7 +12,6 @@ import lombok.*;
 @Getter
 public class UserRequest {
     @NotBlank
-    @Size(min = 2)
     private String name;
 
     @NotBlank
@@ -21,6 +19,5 @@ public class UserRequest {
     private String email;
 
     @NotBlank
-    @Size(min = 6)
     private String password;
 }
