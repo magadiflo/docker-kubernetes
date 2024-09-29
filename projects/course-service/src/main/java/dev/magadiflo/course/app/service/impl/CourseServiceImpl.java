@@ -1,10 +1,15 @@
 package dev.magadiflo.course.app.service.impl;
 
+import dev.magadiflo.course.app.client.UserFeignClient;
 import dev.magadiflo.course.app.exception.CourseNotFoundException;
 import dev.magadiflo.course.app.mapper.CourseMapper;
+import dev.magadiflo.course.app.mapper.CourseUserMapper;
 import dev.magadiflo.course.app.model.dto.CourseRequest;
 import dev.magadiflo.course.app.model.dto.CourseResponse;
+import dev.magadiflo.course.app.model.dto.UserRequest;
+import dev.magadiflo.course.app.model.dto.UserResponse;
 import dev.magadiflo.course.app.model.entity.Course;
+import dev.magadiflo.course.app.model.entity.CourseUser;
 import dev.magadiflo.course.app.repository.CourseRepository;
 import dev.magadiflo.course.app.service.CourseService;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +27,8 @@ public class CourseServiceImpl implements CourseService {
 
     private final CourseRepository courseRepository;
     private final CourseMapper courseMapper;
+    private final CourseUserMapper courseUserMapper;
+    private final UserFeignClient userFeignClient;
 
 
     @Override
@@ -61,5 +68,47 @@ public class CourseServiceImpl implements CourseService {
         Course courseDB = this.courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
         this.courseRepository.delete(courseDB);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse assignExistingUserToCourse(Long userId, Long courseId) {
+        return this.courseRepository.findById(courseId)
+                .map(courseDB -> {
+                    UserResponse userResponse = this.userFeignClient.findUser(userId);
+                    CourseUser courseUser = this.courseUserMapper.toCourseUser(userResponse);
+                    this.courseMapper.addCourseUserToCourse(courseUser, courseDB);
+                    this.courseRepository.save(courseDB);
+                    return userResponse;
+                })
+                .orElseThrow(() -> new CourseNotFoundException(courseId));
+    }
+
+    @Override
+    @Transactional
+    public UserResponse createUserAndAssignItToCourse(UserRequest userRequest, Long courseId) {
+        return this.courseRepository.findById(courseId)
+                .map(courseDB -> {
+                    UserResponse userResponse = this.userFeignClient.saveUser(userRequest);
+                    CourseUser courseUser = this.courseUserMapper.toCourseUser(userResponse);
+                    this.courseMapper.addCourseUserToCourse(courseUser, courseDB);
+                    this.courseRepository.save(courseDB);
+                    return userResponse;
+                })
+                .orElseThrow(() -> new CourseNotFoundException(courseId));
+    }
+
+    @Override
+    @Transactional
+    public UserResponse unassignUserFromACourse(Long userId, Long courseId) {
+        return this.courseRepository.findById(courseId)
+                .map(courseDB -> {
+                    UserResponse userResponse = this.userFeignClient.findUser(userId);
+                    CourseUser courseUser = this.courseUserMapper.toCourseUser(userResponse);
+                    this.courseMapper.deleteCourseUserFromCourse(courseUser, courseDB);
+                    this.courseRepository.save(courseDB);
+                    return userResponse;
+                })
+                .orElseThrow(() -> new CourseNotFoundException(courseId));
     }
 }
