@@ -47,4 +47,10 @@ public class UserController {
         this.userService.deleteUser(userId);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping(path = "/by-ids")
+    public ResponseEntity<List<UserResponse>> findUsersByIds(@RequestParam List<Long> userIds) {
+        return ResponseEntity.ok(this.userService.findUsersByIds(userIds));
+    }
+
 }
