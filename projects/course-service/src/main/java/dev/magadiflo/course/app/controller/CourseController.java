@@ -2,9 +2,12 @@ package dev.magadiflo.course.app.controller;
 
 import dev.magadiflo.course.app.model.dto.CourseRequest;
 import dev.magadiflo.course.app.model.dto.CourseResponse;
+import dev.magadiflo.course.app.model.dto.UserRequest;
+import dev.magadiflo.course.app.model.dto.UserResponse;
 import dev.magadiflo.course.app.service.CourseService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -38,7 +41,8 @@ public class CourseController {
     }
 
     @PutMapping(path = "/{courseId}")
-    public ResponseEntity<CourseResponse> updateCourse(@PathVariable Long courseId, @Valid @RequestBody CourseRequest courseRequest) {
+    public ResponseEntity<CourseResponse> updateCourse(@PathVariable Long courseId,
+                                                       @Valid @RequestBody CourseRequest courseRequest) {
         return ResponseEntity.ok(this.courseService.updateCourse(courseId, courseRequest));
     }
 
@@ -46,5 +50,22 @@ public class CourseController {
     public ResponseEntity<Void> deleteCourse(@PathVariable Long courseId) {
         this.courseService.deleteCourse(courseId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping(path = "/{courseId}/users/{userId}")
+    public ResponseEntity<UserResponse> assignExistingUserToCourse(@PathVariable Long courseId,
+                                                                   @PathVariable Long userId) {
+        return ResponseEntity.ok(this.courseService.assignExistingUserToCourse(userId, courseId));
+    }
+
+    @PostMapping(path = "/{courseId}/users")
+    public ResponseEntity<UserResponse> createUserAndAssignItToCourse(@Valid @RequestBody UserRequest userRequest,
+                                                                      @PathVariable Long courseId) {
+        return new ResponseEntity<>(this.courseService.createUserAndAssignItToCourse(userRequest, courseId), HttpStatus.CREATED);
+    }
+
+    @DeleteMapping(path = "/{courseId}/users/{userId}")
+    public ResponseEntity<UserResponse> unassignUserFromACourse(@PathVariable Long courseId, @PathVariable Long userId) {
+        return ResponseEntity.ok(this.courseService.unassignUserFromACourse(userId, courseId));
     }
 }
