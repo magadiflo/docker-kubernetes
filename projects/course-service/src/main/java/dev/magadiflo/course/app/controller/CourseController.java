@@ -5,6 +5,7 @@ import dev.magadiflo.course.app.model.dto.CourseResponse;
 import dev.magadiflo.course.app.model.dto.UserRequest;
 import dev.magadiflo.course.app.model.dto.UserResponse;
 import dev.magadiflo.course.app.service.CourseService;
+import dev.magadiflo.course.app.service.CourseUserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import java.util.List;
 public class CourseController {
 
     private final CourseService courseService;
+    private final CourseUserService courseUserService;
 
     @GetMapping
     public ResponseEntity<List<CourseResponse>> findAllCourses(@RequestParam(required = false, defaultValue = "false") boolean loadRelations) {
@@ -68,5 +70,11 @@ public class CourseController {
     @DeleteMapping(path = "/{courseId}/users/{userId}")
     public ResponseEntity<UserResponse> unassignUserFromACourse(@PathVariable Long courseId, @PathVariable Long userId) {
         return ResponseEntity.ok(this.courseService.unassignUserFromACourse(userId, courseId));
+    }
+
+    @DeleteMapping(path = "/users/{userId}")
+    public ResponseEntity<Void> unassignUserFromAssociatedCourse(@PathVariable Long userId) {
+        this.courseUserService.deleteCourseUserByUserId(userId);
+        return ResponseEntity.noContent().build();
     }
 }
