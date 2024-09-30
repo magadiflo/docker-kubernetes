@@ -1,8 +1,8 @@
 package dev.magadiflo.course.app.model.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @ToString
@@ -14,6 +14,6 @@ import java.util.List;
 public class CourseResponse {
     private Long id;
     private String name;
-    @Builder.Default
-    private List<UserResponse> users = new ArrayList<>();
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private List<UserResponse> users;
 }

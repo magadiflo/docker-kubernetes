@@ -9,6 +9,8 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingConstants;
 import org.mapstruct.MappingTarget;
 
+import java.util.Collection;
+
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface CourseMapper {
     Course toCourseEntity(CourseRequest courseRequest);
@@ -24,5 +26,9 @@ public interface CourseMapper {
 
     default void deleteCourseUserFromCourse(CourseUser courseUser, Course course) {
         course.getCourseUsers().remove(courseUser);
+    }
+
+    default Collection<Long> extractUserIdsFromCourse(Course course) {
+        return course.getCourseUsers().stream().map(CourseUser::getUserId).toList();
     }
 }

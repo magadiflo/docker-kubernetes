@@ -4,10 +4,7 @@ import dev.magadiflo.course.app.client.UserFeignClient;
 import dev.magadiflo.course.app.exception.CourseNotFoundException;
 import dev.magadiflo.course.app.mapper.CourseMapper;
 import dev.magadiflo.course.app.mapper.CourseUserMapper;
-import dev.magadiflo.course.app.model.dto.CourseRequest;
-import dev.magadiflo.course.app.model.dto.CourseResponse;
-import dev.magadiflo.course.app.model.dto.UserRequest;
-import dev.magadiflo.course.app.model.dto.UserResponse;
+import dev.magadiflo.course.app.model.dto.*;
 import dev.magadiflo.course.app.model.entity.Course;
 import dev.magadiflo.course.app.model.entity.CourseUser;
 import dev.magadiflo.course.app.repository.CourseRepository;
@@ -17,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 @Slf4j
@@ -30,19 +29,22 @@ public class CourseServiceImpl implements CourseService {
     private final CourseUserMapper courseUserMapper;
     private final UserFeignClient userFeignClient;
 
-
     @Override
-    public List<CourseResponse> findAllCourses() {
-        return ((List<Course>) this.courseRepository.findAll()).stream()
-                .map(this.courseMapper::toCourseResponse)
-                .toList();
+    public List<CourseResponse> findAllCourses(boolean loadRelations) {
+        List<Course> courses = (List<Course>) this.courseRepository.findAll();
+        return loadRelations ?
+                courses.stream().map(this::loadRelations).toList() :
+                courses.stream().map(this.courseMapper::toCourseResponse).toList();
     }
 
     @Override
-    public CourseResponse findCourse(Long courseId) {
-        return this.courseRepository.findById(courseId)
-                .map(this.courseMapper::toCourseResponse)
+    public CourseResponse findCourse(Long courseId, boolean loadRelations) {
+        Course courseDB = this.courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
+
+        return loadRelations ?
+                this.loadRelations(courseDB) :
+                this.courseMapper.toCourseResponse(courseDB);
     }
 
     @Override
@@ -110,5 +112,18 @@ public class CourseServiceImpl implements CourseService {
                     return userResponse;
                 })
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
+    }
+
+    private CourseResponse loadRelations(Course course) {
+        Collection<Long> userIds = this.courseMapper.extractUserIdsFromCourse(course);
+        CourseResponse courseResponse = this.courseMapper.toCourseResponse(course);
+        List<UserResponse> usersResponseByIds = new ArrayList<>();
+
+        if (!userIds.isEmpty()) {
+            usersResponseByIds = this.userFeignClient.findUsersByIds((List<Long>) userIds);
+        }
+        courseResponse.setUsers(usersResponseByIds);
+
+        return courseResponse;
     }
 }
