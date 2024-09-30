@@ -1,5 +1,6 @@
 package dev.magadiflo.user.app.service.impl;
 
+import dev.magadiflo.user.app.client.CourseFeignClient;
 import dev.magadiflo.user.app.exception.EmailAlreadyExistsException;
 import dev.magadiflo.user.app.exception.UserNotFound;
 import dev.magadiflo.user.app.mapper.UserMapper;
@@ -23,6 +24,7 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final CourseFeignClient courseFeignClient;
 
     @Override
     public List<UserResponse> findAllUsers() {
@@ -70,6 +72,7 @@ public class UserServiceImpl implements UserService {
         User userDB = this.userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFound(userId));
         this.userRepository.delete(userDB);
+        this.courseFeignClient.unassignUserFromAssociatedCourse(userId);
     }
 
     @Override

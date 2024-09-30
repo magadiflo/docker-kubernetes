@@ -4,6 +4,7 @@ import dev.magadiflo.user.app.exception.EmailAlreadyExistsException;
 import dev.magadiflo.user.app.exception.NotFoundException;
 import dev.magadiflo.user.app.exception.UserNotFound;
 import dev.magadiflo.user.app.util.HttpErrorResponse;
+import feign.FeignException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -64,6 +65,17 @@ public class GlobalExceptionHandler {
                         .timestamp(LocalDateTime.now())
                         .path(request.getRequestURI())
                         .errors(errors)
+                        .build());
+    }
+
+    @ExceptionHandler(FeignException.class)
+    public ResponseEntity<HttpErrorResponse> handleFeignException(FeignException exception, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(HttpErrorResponse.builder()
+                        .httpStatus(HttpStatus.BAD_GATEWAY)
+                        .message(exception.getMessage())
+                        .timestamp(LocalDateTime.now())
+                        .path(request.getRequestURI())
                         .build());
     }
 
