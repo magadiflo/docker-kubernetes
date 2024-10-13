@@ -4,6 +4,8 @@ server:
     include-message: always
 
 spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:default}
   application:
     name: user-service
   datasource:
