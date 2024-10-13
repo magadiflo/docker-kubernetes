@@ -23,6 +23,6 @@ COPY --from=builder /app/spring-boot-loader ./
 COPY --from=builder /app/snapshot-dependencies ./
 COPY --from=builder /app/application ./
 
-ENV CONTAINER_PORT=8000
+ENV CONTAINER_PORT=8001
 EXPOSE ${CONTAINER_PORT}
 CMD ["java", "org.springframework.boot.loader.launch.JarLauncher"]
