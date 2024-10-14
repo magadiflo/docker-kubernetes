@@ -19,6 +19,11 @@ spring:
       hibernate:
         format_sql: true
 
+custom:
+  service:
+    course-service:
+      url: ${COURSE_CLIENT_HOST}:${COURSE_CLIENT_PORT}
+
 logging:
   level:
     dev.magadiflo.user.app: DEBUG
