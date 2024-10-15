@@ -40,6 +40,34 @@ services:
       timeout: 5s
       retries: 5
 
+  user-service:
+    image: user-service:latest
+    container_name: c-user-service
+    restart: unless-stopped
+    ports:
+      - '8001:8001'
+    env_file: ./projects/user-service/.env
+    networks:
+      - docker-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  course-service:
+    image: course-service:latest
+    container_name: c-course-service
+    restart: unless-stopped
+    ports:
+      - '8002:8002'
+    env_file: ./projects/course-service/.env
+    networks:
+      - docker-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+
 volumes:
   data_mysql:
     name: data_mysql
