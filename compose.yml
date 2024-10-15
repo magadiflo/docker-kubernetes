@@ -1,0 +1,54 @@
+services:
+  mysql:
+    image: mysql:8.0.33
+    container_name: c-mysql
+    restart: unless-stopped
+    ports:
+      - '3307:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: magadiflo
+      MYSQL_DATABASE: db_user_service
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: magadiflo
+    volumes:
+      - data_mysql:/var/lib/mysql
+    networks:
+      - docker-network
+    healthcheck:
+      test: [ "CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:15.2-alpine
+    container_name: c-postgres
+    restart: unless-stopped
+    ports:
+      - '5433:5432'
+    environment:
+      POSTGRES_DB: db_course_service
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: magadiflo
+    volumes:
+      - data_postgres:/var/lib/postgresql/data
+    networks:
+      - docker-network
+    healthcheck:
+      test: [ 'CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}' ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  data_mysql:
+    name: data_mysql
+    external: true
+  data_postgres:
+    name: data_postgres
+    external: true
+
+networks:
+  docker-network:
+    name: docker-network
+    external: true
