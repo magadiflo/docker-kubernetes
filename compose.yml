@@ -41,10 +41,7 @@ services:
       retries: 5
 
   user-service:
-    build:
-      context: ./projects/user-service
-      dockerfile: Dockerfile
-    image: user-service:latest
+    image: magadiflo/user-service:latest
     container_name: c-user-service
     restart: unless-stopped
     ports:
@@ -57,10 +54,7 @@ services:
         condition: service_healthy
 
   course-service:
-    build:
-      context: ./projects/course-service
-      dockerfile: Dockerfile
-    image: course-service:latest
+    image: magadiflo/course-service:latest
     container_name: c-course-service
     restart: unless-stopped
     ports:
