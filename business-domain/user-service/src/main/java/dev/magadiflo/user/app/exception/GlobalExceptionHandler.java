@@ -55,8 +55,8 @@ public class GlobalExceptionHandler {
 
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase().concat(": falló la validación de los campos."),
-                exception.getMessage(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                "Falló la validación de los campos",
                 request.getRequestURI(),
                 errors
         );
