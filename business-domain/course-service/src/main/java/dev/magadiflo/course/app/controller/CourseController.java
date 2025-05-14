@@ -2,7 +2,10 @@ package dev.magadiflo.course.app.controller;
 
 import dev.magadiflo.course.app.dto.CourseRequest;
 import dev.magadiflo.course.app.dto.CourseResponse;
+import dev.magadiflo.course.app.dto.UserRequest;
+import dev.magadiflo.course.app.dto.UserResponse;
 import dev.magadiflo.course.app.service.CourseService;
+import dev.magadiflo.course.app.service.CourseUserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +23,7 @@ import java.util.List;
 public class CourseController {
 
     private final CourseService courseService;
+    private final CourseUserService courseUserService;
 
     @GetMapping
     public ResponseEntity<List<CourseResponse>> findAllCourses() {
@@ -49,6 +53,34 @@ public class CourseController {
     @DeleteMapping(path = "/{courseId}")
     public ResponseEntity<Void> deleteCourse(@PathVariable Long courseId) {
         this.courseService.deleteCourse(courseId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping(path = "/{courseId}/users/{userId}")
+    public ResponseEntity<UserResponse> assignExistingUserToCourse(@PathVariable Long courseId,
+                                                                   @PathVariable Long userId) {
+        return ResponseEntity.ok(this.courseService.assignExistingUserToCourse(userId, courseId));
+    }
+
+    @PostMapping(path = "/{courseId}/users")
+    public ResponseEntity<UserResponse> createUserAndAssignItToCourse(@Valid @RequestBody UserRequest userRequest,
+                                                                      @PathVariable Long courseId) {
+        UserResponse userResponse = this.courseService.createUserAndAssignItToCourse(userRequest, courseId);
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{courseId}/users/{userId}")
+                .buildAndExpand(courseId, userResponse.id())
+                .toUri();
+        return ResponseEntity.created(location).body(userResponse);
+    }
+
+    @DeleteMapping(path = "/{courseId}/users/{userId}")
+    public ResponseEntity<UserResponse> unassignUserFromACourse(@PathVariable Long courseId, @PathVariable Long userId) {
+        return ResponseEntity.ok(this.courseService.unassignUserFromACourse(userId, courseId));
+    }
+
+    @DeleteMapping(path = "/users/{userId}")
+    public ResponseEntity<Void> unassignUserFromAssociatedCourse(@PathVariable Long userId) {
+        this.courseUserService.deleteCourseUserByUserId(userId);
         return ResponseEntity.noContent().build();
     }
 }
