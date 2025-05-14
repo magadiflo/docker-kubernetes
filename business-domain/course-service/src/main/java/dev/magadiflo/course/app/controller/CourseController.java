@@ -9,6 +9,7 @@ import dev.magadiflo.course.app.service.CourseUserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -65,12 +66,7 @@ public class CourseController {
     @PostMapping(path = "/{courseId}/users")
     public ResponseEntity<UserResponse> createUserAndAssignItToCourse(@Valid @RequestBody UserRequest userRequest,
                                                                       @PathVariable Long courseId) {
-        UserResponse userResponse = this.courseService.createUserAndAssignItToCourse(userRequest, courseId);
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/{courseId}/users/{userId}")
-                .buildAndExpand(courseId, userResponse.id())
-                .toUri();
-        return ResponseEntity.created(location).body(userResponse);
+        return new ResponseEntity<>(this.courseService.createUserAndAssignItToCourse(userRequest, courseId), HttpStatus.CREATED);
     }
 
     @DeleteMapping(path = "/{courseId}/users/{userId}")

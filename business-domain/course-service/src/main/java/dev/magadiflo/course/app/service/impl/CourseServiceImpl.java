@@ -1,6 +1,6 @@
 package dev.magadiflo.course.app.service.impl;
 
-import dev.magadiflo.course.app.client.UserServiceRestClient;
+import dev.magadiflo.course.app.client.UserServiceClient;
 import dev.magadiflo.course.app.dto.CourseRequest;
 import dev.magadiflo.course.app.dto.CourseResponse;
 import dev.magadiflo.course.app.dto.UserRequest;
@@ -28,7 +28,7 @@ public class CourseServiceImpl implements CourseService {
     private final CourseRepository courseRepository;
     private final CourseMapper courseMapper;
     private final CourseUserMapper courseUserMapper;
-    private final UserServiceRestClient userServiceRestClient;
+    private final UserServiceClient userServiceClient;
 
     @Override
     public List<CourseResponse> findAllCourses() {
@@ -74,7 +74,7 @@ public class CourseServiceImpl implements CourseService {
     public UserResponse assignExistingUserToCourse(Long userId, Long courseId) {
         return this.courseRepository.findById(courseId)
                 .map(courseDB -> {
-                    UserResponse userResponse = this.userServiceRestClient.getUserFromUserService(userId);
+                    UserResponse userResponse = this.userServiceClient.getUserFromUserService(userId);
                     CourseUser courseUser = this.courseUserMapper.toCourseUser(userResponse);
                     this.addCourseUserToCourse(courseUser, courseDB);
                     this.courseRepository.save(courseDB);
@@ -88,7 +88,7 @@ public class CourseServiceImpl implements CourseService {
     public UserResponse createUserAndAssignItToCourse(UserRequest userRequest, Long courseId) {
         return this.courseRepository.findById(courseId)
                 .map(courseDB -> {
-                    UserResponse userResponse = this.userServiceRestClient.createUserInUserService(userRequest);
+                    UserResponse userResponse = this.userServiceClient.createUserInUserService(userRequest);
                     CourseUser courseUser = this.courseUserMapper.toCourseUser(userResponse);
                     this.addCourseUserToCourse(courseUser, courseDB);
                     this.courseRepository.save(courseDB);
@@ -102,7 +102,7 @@ public class CourseServiceImpl implements CourseService {
     public UserResponse unassignUserFromACourse(Long userId, Long courseId) {
         return this.courseRepository.findById(courseId)
                 .map(courseDB -> {
-                    UserResponse userResponse = this.userServiceRestClient.getUserFromUserService(userId);
+                    UserResponse userResponse = this.userServiceClient.getUserFromUserService(userId);
                     CourseUser courseUser = this.courseUserMapper.toCourseUser(userResponse);
                     this.deleteCourseUserFromCourse(courseUser, courseDB);
                     this.courseRepository.save(courseDB);

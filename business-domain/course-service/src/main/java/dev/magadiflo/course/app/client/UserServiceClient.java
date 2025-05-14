@@ -17,7 +17,7 @@ import java.util.Optional;
 @Slf4j
 @RequiredArgsConstructor
 @Component
-public class UserServiceRestClient {
+public class UserServiceClient {
 
     private final RestClient restClient;
 
