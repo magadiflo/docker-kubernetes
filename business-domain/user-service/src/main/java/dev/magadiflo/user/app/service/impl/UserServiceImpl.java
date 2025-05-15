@@ -71,4 +71,11 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new UserNotFoundException(userId));
         this.userRepository.delete(userDB);
     }
+
+    @Override
+    public List<UserResponse> findUsersByIds(List<Long> userIds) {
+        return this.userRepository.findAllById(userIds).stream()
+                .map(this.userMapper::toUserResponse)
+                .toList();
+    }
 }
