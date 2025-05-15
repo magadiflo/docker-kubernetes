@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
 
 @Slf4j
@@ -119,5 +120,9 @@ public class CourseServiceImpl implements CourseService {
     private void deleteCourseUserFromCourse(CourseUser courseUser, Course course) {
         log.info("Eliminando el courseUser con userId {} del curso {}", courseUser.getUserId(), course.getName());
         course.getCourseUsers().remove(courseUser);
+    }
+
+    private Collection<Long> extractUserIdsFromCourse(Course course) {
+        return course.getCourseUsers().stream().map(CourseUser::getUserId).toList();
     }
 }
