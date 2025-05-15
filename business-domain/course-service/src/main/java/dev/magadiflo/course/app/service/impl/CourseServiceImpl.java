@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -32,17 +33,20 @@ public class CourseServiceImpl implements CourseService {
     private final UserServiceClient userServiceClient;
 
     @Override
-    public List<CourseResponse> findAllCourses() {
-        return this.courseRepository.findAll().stream()
-                .map(this.courseMapper::toCourseResponse)
-                .toList();
+    public List<CourseResponse> findAllCourses(boolean loadRelations) {
+        return loadRelations ?
+                this.courseRepository.findAll().stream().map(this::loadRelations).toList() :
+                this.courseRepository.findAll().stream().map(this.courseMapper::toCourseResponse).toList();
     }
 
     @Override
-    public CourseResponse findCourse(Long courseId) {
-        return this.courseRepository.findById(courseId)
-                .map(this.courseMapper::toCourseResponse)
+    public CourseResponse findCourse(Long courseId, boolean loadRelations) {
+        Course courseDB = this.courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
+
+        return loadRelations ?
+                this.loadRelations(courseDB) :
+                this.courseMapper.toCourseResponse(courseDB);
     }
 
     @Override
@@ -120,6 +124,17 @@ public class CourseServiceImpl implements CourseService {
     private void deleteCourseUserFromCourse(CourseUser courseUser, Course course) {
         log.info("Eliminando el courseUser con userId {} del curso {}", courseUser.getUserId(), course.getName());
         course.getCourseUsers().remove(courseUser);
+    }
+
+    private CourseResponse loadRelations(Course course) {
+        Collection<Long> userIds = this.extractUserIdsFromCourse(course);
+        List<UserResponse> userResponseList = new ArrayList<>();
+
+        if (!userIds.isEmpty()) {
+            userResponseList = this.userServiceClient.getUsersByIdsFromUserService((List<Long>) userIds);
+        }
+
+        return new CourseResponse(course.getId(), course.getName(), userResponseList);
     }
 
     private Collection<Long> extractUserIdsFromCourse(Course course) {

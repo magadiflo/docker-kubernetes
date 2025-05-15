@@ -27,13 +27,14 @@ public class CourseController {
     private final CourseUserService courseUserService;
 
     @GetMapping
-    public ResponseEntity<List<CourseResponse>> findAllCourses() {
-        return ResponseEntity.ok(this.courseService.findAllCourses());
+    public ResponseEntity<List<CourseResponse>> findAllCourses(@RequestParam(required = false, defaultValue = "false") boolean loadRelations) {
+        return ResponseEntity.ok(this.courseService.findAllCourses(loadRelations));
     }
 
     @GetMapping(path = "/{courseId}")
-    public ResponseEntity<CourseResponse> findCourse(@PathVariable Long courseId) {
-        return ResponseEntity.ok(this.courseService.findCourse(courseId));
+    public ResponseEntity<CourseResponse> findCourse(@PathVariable Long courseId,
+                                                     @RequestParam(required = false, defaultValue = "false") boolean loadRelations) {
+        return ResponseEntity.ok(this.courseService.findCourse(courseId, loadRelations));
     }
 
     @PostMapping

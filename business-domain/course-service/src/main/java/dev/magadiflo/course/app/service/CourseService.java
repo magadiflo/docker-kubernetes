@@ -8,9 +8,9 @@ import dev.magadiflo.course.app.dto.UserResponse;
 import java.util.List;
 
 public interface CourseService {
-    List<CourseResponse> findAllCourses();
+    List<CourseResponse> findAllCourses(boolean loadRelations);
 
-    CourseResponse findCourse(Long courseId);
+    CourseResponse findCourse(Long courseId, boolean loadRelations);
 
     CourseResponse saveCourse(CourseRequest courseRequest);
 
