@@ -1,5 +1,6 @@
 package dev.magadiflo.user.app.service.impl;
 
+import dev.magadiflo.user.app.client.CourseServiceClient;
 import dev.magadiflo.user.app.dto.UserRequest;
 import dev.magadiflo.user.app.dto.UserResponse;
 import dev.magadiflo.user.app.entity.User;
@@ -23,6 +24,7 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final CourseServiceClient courseServiceClient;
 
     @Override
     public List<UserResponse> findAllUsers() {
@@ -70,5 +72,13 @@ public class UserServiceImpl implements UserService {
         User userDB = this.userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
         this.userRepository.delete(userDB);
+        this.courseServiceClient.unassignUserFromAssociatedCourse(userId);
+    }
+
+    @Override
+    public List<UserResponse> findUsersByIds(List<Long> userIds) {
+        return this.userRepository.findAllById(userIds).stream()
+                .map(this.userMapper::toUserResponse)
+                .toList();
     }
 }

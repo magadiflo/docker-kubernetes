@@ -17,6 +17,10 @@ spring:
       hibernate:
         format_sql: true
 
+custom:
+  user-service:
+    base-url: http://localhost:8001/api/v1/users
+
 logging:
   level:
     dev.magadiflo.course.app: debug

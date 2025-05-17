@@ -1,10 +1,15 @@
 package dev.magadiflo.course.app.service.impl;
 
+import dev.magadiflo.course.app.client.UserServiceClient;
 import dev.magadiflo.course.app.dto.CourseRequest;
 import dev.magadiflo.course.app.dto.CourseResponse;
+import dev.magadiflo.course.app.dto.UserRequest;
+import dev.magadiflo.course.app.dto.UserResponse;
 import dev.magadiflo.course.app.entity.Course;
+import dev.magadiflo.course.app.entity.CourseUser;
 import dev.magadiflo.course.app.exception.CourseNotFoundException;
 import dev.magadiflo.course.app.mapper.CourseMapper;
+import dev.magadiflo.course.app.mapper.CourseUserMapper;
 import dev.magadiflo.course.app.repository.CourseRepository;
 import dev.magadiflo.course.app.service.CourseService;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 @Slf4j
@@ -22,19 +29,24 @@ public class CourseServiceImpl implements CourseService {
 
     private final CourseRepository courseRepository;
     private final CourseMapper courseMapper;
+    private final CourseUserMapper courseUserMapper;
+    private final UserServiceClient userServiceClient;
 
     @Override
-    public List<CourseResponse> findAllCourses() {
-        return this.courseRepository.findAll().stream()
-                .map(this.courseMapper::toCourseResponse)
-                .toList();
+    public List<CourseResponse> findAllCourses(boolean loadRelations) {
+        return loadRelations ?
+                this.courseRepository.findAll().stream().map(this::loadRelations).toList() :
+                this.courseRepository.findAll().stream().map(this.courseMapper::toCourseResponse).toList();
     }
 
     @Override
-    public CourseResponse findCourse(Long courseId) {
-        return this.courseRepository.findById(courseId)
-                .map(this.courseMapper::toCourseResponse)
+    public CourseResponse findCourse(Long courseId, boolean loadRelations) {
+        Course courseDB = this.courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
+
+        return loadRelations ?
+                this.loadRelations(courseDB) :
+                this.courseMapper.toCourseResponse(courseDB);
     }
 
     @Override
@@ -60,5 +72,72 @@ public class CourseServiceImpl implements CourseService {
         Course courseDB = this.courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
         this.courseRepository.delete(courseDB);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse assignExistingUserToCourse(Long userId, Long courseId) {
+        return this.courseRepository.findById(courseId)
+                .map(courseDB -> {
+                    UserResponse userResponse = this.userServiceClient.getUserFromUserService(userId);
+                    CourseUser courseUser = this.courseUserMapper.toCourseUser(userResponse);
+                    this.addCourseUserToCourse(courseUser, courseDB);
+                    this.courseRepository.save(courseDB);
+                    return userResponse;
+                })
+                .orElseThrow(() -> new CourseNotFoundException(courseId));
+    }
+
+    @Override
+    @Transactional
+    public UserResponse createUserAndAssignItToCourse(UserRequest userRequest, Long courseId) {
+        return this.courseRepository.findById(courseId)
+                .map(courseDB -> {
+                    UserResponse userResponse = this.userServiceClient.createUserInUserService(userRequest);
+                    CourseUser courseUser = this.courseUserMapper.toCourseUser(userResponse);
+                    this.addCourseUserToCourse(courseUser, courseDB);
+                    this.courseRepository.save(courseDB);
+                    return userResponse;
+                })
+                .orElseThrow(() -> new CourseNotFoundException(courseId));
+    }
+
+    @Override
+    @Transactional
+    public UserResponse unassignUserFromACourse(Long userId, Long courseId) {
+        return this.courseRepository.findById(courseId)
+                .map(courseDB -> {
+                    UserResponse userResponse = this.userServiceClient.getUserFromUserService(userId);
+                    CourseUser courseUser = this.courseUserMapper.toCourseUser(userResponse);
+                    this.deleteCourseUserFromCourse(courseUser, courseDB);
+                    this.courseRepository.save(courseDB);
+                    return userResponse;
+                })
+                .orElseThrow(() -> new CourseNotFoundException(courseId));
+    }
+
+    private void addCourseUserToCourse(CourseUser courseUser, Course course) {
+        log.info("Agregando courseUser con userId {} al curso {}", courseUser.getUserId(), course.getName());
+        course.getCourseUsers().add(courseUser);
+    }
+
+    private void deleteCourseUserFromCourse(CourseUser courseUser, Course course) {
+        log.info("Eliminando el courseUser con userId {} del curso {}", courseUser.getUserId(), course.getName());
+        course.getCourseUsers().remove(courseUser);
+    }
+
+    private CourseResponse loadRelations(Course course) {
+        Collection<Long> userIds = this.extractUserIdsFromCourse(course);
+        List<UserResponse> userResponseList = new ArrayList<>();
+
+        if (!userIds.isEmpty()) {
+            userResponseList = this.userServiceClient.getUsersByIdsFromUserService((List<Long>) userIds);
+        }
+
+        return new CourseResponse(course.getId(), course.getName(), userResponseList);
+    }
+
+    private Collection<Long> extractUserIdsFromCourse(Course course) {
+        return course.getCourseUsers().stream().map(CourseUser::getUserId).toList();
     }
 }
