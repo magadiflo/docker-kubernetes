@@ -25,3 +25,5 @@ logging:
   level:
     dev.magadiflo.user.app: debug
     org.hibernate.SQL: debug
+  file:
+    name: /app/logs/${spring.application.name}.log
