@@ -19,7 +19,7 @@ spring:
 
 custom:
   course-service:
-    base-url: http://host.docker.internal:8002/api/v1/courses
+    base-url: http://c-course-service:8002/api/v1/courses
 
 logging:
   level:
