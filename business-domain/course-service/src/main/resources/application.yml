@@ -7,7 +7,7 @@ spring:
   application:
     name: course-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/db_course_service
+    url: jdbc:postgresql://c-postgres:5432/db_course_service
     username: postgres
     password: magadiflo
   jpa:
@@ -19,7 +19,7 @@ spring:
 
 custom:
   user-service:
-    base-url: http://localhost:8001/api/v1/users
+    base-url: http://c-user-service:8001/api/v1/users
 
 logging:
   level:
