@@ -7,7 +7,7 @@ spring:
   application:
     name: user-service
   datasource:
-    url: jdbc:mysql://host.docker.internal:3306/db_user_service
+    url: jdbc:mysql://c-mysql:3306/db_user_service
     username: admin
     password: magadiflo
   jpa:
