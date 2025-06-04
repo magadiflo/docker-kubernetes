@@ -1,9 +1,11 @@
 server:
-  port: 8001
+  port: ${CONTAINER_PORT:8001}
   error:
     include-message: always
 
 spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:default}
   application:
     name: user-service
   datasource:
