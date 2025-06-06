@@ -21,7 +21,7 @@ spring:
 
 custom:
   course-service:
-    base-url: http://c-course-service:8002/api/v1/courses
+    base-url: http://${COURSE_SERVICE_HOST}:${COURSE_SERVICE_PORT}/api/v1/courses
 
 logging:
   level:
