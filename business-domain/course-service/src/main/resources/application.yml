@@ -1,5 +1,5 @@
 server:
-  port: 8002
+  port: ${CONTAINER_PORT:8002}
   error:
     include-message: always
 
@@ -7,9 +7,9 @@ spring:
   application:
     name: course-service
   datasource:
-    url: jdbc:postgresql://c-postgres:5432/db_course_service
-    username: postgres
-    password: magadiflo
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: update
@@ -19,7 +19,7 @@ spring:
 
 custom:
   user-service:
-    base-url: http://c-user-service:8001/api/v1/users
+    base-url: http://${USER_SERVICE_HOST}:${USER_SERVICE_PORT}/api/v1/users
 
 logging:
   level:
