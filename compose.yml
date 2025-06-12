@@ -40,6 +40,32 @@ services:
       timeout: 5s
       retries: 5
 
+  s-user-service:
+    image: user-service:latest
+    container_name: c-user-service
+    restart: unless-stopped
+    ports:
+      - '8001:8001'
+    env_file: ./business-domain/user-service/.env
+    networks:
+      - docker-kubernetes-net
+    depends_on:
+      s-mysql:
+        condition: service_healthy
+
+  s-course-service:
+    image: course-service:latest
+    container_name: c-course-service
+    restart: unless-stopped
+    ports:
+      - '8002:8002'
+    env_file: ./business-domain/course-service/.env
+    networks:
+      - docker-kubernetes-net
+    depends_on:
+      s-postgres:
+        condition: service_healthy
+
 volumes:
   mysql-data:
     name: mysql-data
