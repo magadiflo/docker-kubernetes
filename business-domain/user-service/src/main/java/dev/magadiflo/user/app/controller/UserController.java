@@ -28,6 +28,7 @@ public class UserController {
 
     @GetMapping(path = "/{userId}")
     public ResponseEntity<UserResponse> findUser(@PathVariable Long userId) {
+        log.info("¡Cambio efectuado!");
         return ResponseEntity.ok(this.userService.findUser(userId));
     }
 
