@@ -41,6 +41,8 @@ services:
       retries: 5
 
   s-user-service:
+    build:
+      context: ./business-domain/user-service
     image: user-service:latest
     container_name: c-user-service
     restart: unless-stopped
@@ -54,6 +56,8 @@ services:
         condition: service_healthy
 
   s-course-service:
+    build:
+      context: ./business-domain/course-service
     image: course-service:latest
     container_name: c-course-service
     restart: unless-stopped
