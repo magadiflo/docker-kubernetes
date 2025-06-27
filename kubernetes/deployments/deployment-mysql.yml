@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: d-mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: d-mysql
+  template:
+    metadata:
+      labels:
+        app: d-mysql
+    spec:
+      containers:
+        - image: mysql:8.0.41-debian
+          name: c-mysql
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: magadiflo
+            - name: MYSQL_DATABASE
+              value: db_user_service
+            - name: MYSQL_USER
+              value: admin
+            - name: MYSQL_PASSWORD
+              value: magadiflo
