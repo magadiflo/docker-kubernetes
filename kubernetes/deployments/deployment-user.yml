@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: d-user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: d-user-service
+  template:
+    metadata:
+      labels:
+        app: d-user-service
+    spec:
+      containers:
+        - image: magadiflo/user-service:latest
+          name: c-user-service
+          ports:
+            - containerPort: 8001
+          env:
+            - name: CONTAINER_PORT
+              value: '8001'
+            - name: DB_HOST
+              value: s-mysql
+            - name: DB_PORT
+              value: '3306'
+            - name: DB_NAME
+              value: db_user_service
+            - name: DB_USERNAME
+              value: admin
+            - name: DB_PASSWORD
+              value: magadiflo
+            - name: COURSE_SERVICE_HOST
+              value: s-course-service
+            - name: COURSE_SERVICE_PORT
+              value: '8002'
