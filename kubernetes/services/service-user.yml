@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: s-user-service
+spec:
+  ports:
+    - port: 8001
+      protocol: TCP
+      targetPort: 8001
+  selector:
+    app: d-user-service
+  type: LoadBalancer

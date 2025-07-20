@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: d-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: d-postgres
+  template:
+    metadata:
+      labels:
+        app: d-postgres
+    spec:
+      containers:
+        - image: postgres:17-alpine
+          name: c-postgres
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: db_course_service
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: magadiflo
+

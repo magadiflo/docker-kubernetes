@@ -6,6 +6,8 @@ import dev.magadiflo.user.app.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -20,9 +22,17 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final ApplicationContext context;
+
+    @GetMapping(path = "/simulate-an-error")
+    public void simulateAnError() {
+        var configurableApplicationContext = (ConfigurableApplicationContext) this.context;
+        configurableApplicationContext.close();
+    }
 
     @GetMapping
     public ResponseEntity<List<UserResponse>> findAllUsers() {
+        log.info("¡Lista todos los usuarios!");
         return ResponseEntity.ok(this.userService.findAllUsers());
     }
 
