@@ -26,3 +26,10 @@ spec:
               value: admin
             - name: MYSQL_PASSWORD
               value: magadiflo
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: pvc-mysql
