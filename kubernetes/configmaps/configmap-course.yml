@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cm-course-service
+data:
+  container_port: '8002'
+  db_host: s-postgres
+  db_port: '5432'
+  db_name: db_course_service
+  db_username: postgres
+  db_password: magadiflo
+  user_service_host: s-user-service
+  user_service_port: '8001'
