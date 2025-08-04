@@ -19,18 +19,42 @@ spec:
             - containerPort: 8002
           env:
             - name: CONTAINER_PORT
-              value: '8002'
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-course-service
+                  key: container_port
             - name: DB_HOST
-              value: s-postgres
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-course-service
+                  key: db_host
             - name: DB_PORT
-              value: '5432'
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-course-service
+                  key: db_port
             - name: DB_NAME
-              value: db_course_service
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-course-service
+                  key: db_name
             - name: DB_USERNAME
-              value: postgres
+              valueFrom:
+                secretKeyRef:
+                  name: sec-course-service
+                  key: db_username
             - name: DB_PASSWORD
-              value: magadiflo
+              valueFrom:
+                secretKeyRef:
+                  name: sec-course-service
+                  key: db_password
             - name: USER_SERVICE_HOST
-              value: s-user-service
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-course-service
+                  key: user_service_host
             - name: USER_SERVICE_PORT
-              value: '8001'
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-course-service
+                  key: user_service_port
