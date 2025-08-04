@@ -20,8 +20,8 @@ spec:
           env:
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:
-                configMapKeyRef:
-                  name: cm-user-service
+                secretKeyRef:
+                  name: sec-user-service
                   key: db_password
             - name: MYSQL_DATABASE
               valueFrom:
@@ -30,13 +30,13 @@ spec:
                   key: db_name
             - name: MYSQL_USER
               valueFrom:
-                configMapKeyRef:
-                  name: cm-user-service
+                secretKeyRef:
+                  name: sec-user-service
                   key: db_username
             - name: MYSQL_PASSWORD
               valueFrom:
-                configMapKeyRef:
-                  name: cm-user-service
+                secretKeyRef:
+                  name: sec-user-service
                   key: db_password
           volumeMounts:
             - name: mysql-data

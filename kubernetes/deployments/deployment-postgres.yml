@@ -25,13 +25,13 @@ spec:
                   key: db_name
             - name: POSTGRES_USER
               valueFrom:
-                configMapKeyRef:
-                  name: cm-course-service
+                secretKeyRef:
+                  name: sec-course-service
                   key: db_username
             - name: POSTGRES_PASSWORD
               valueFrom:
-                configMapKeyRef:
-                  name: cm-course-service
+                secretKeyRef:
+                  name: sec-course-service
                   key: db_password
           volumeMounts:
             - name: postgres-data

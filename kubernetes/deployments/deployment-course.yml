@@ -40,13 +40,13 @@ spec:
                   key: db_name
             - name: DB_USERNAME
               valueFrom:
-                configMapKeyRef:
-                  name: cm-course-service
+                secretKeyRef:
+                  name: sec-course-service
                   key: db_username
             - name: DB_PASSWORD
               valueFrom:
-                configMapKeyRef:
-                  name: cm-course-service
+                secretKeyRef:
+                  name: sec-course-service
                   key: db_password
             - name: USER_SERVICE_HOST
               valueFrom:
