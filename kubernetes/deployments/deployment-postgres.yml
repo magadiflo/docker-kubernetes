@@ -19,11 +19,20 @@ spec:
             - containerPort: 5432
           env:
             - name: POSTGRES_DB
-              value: db_course_service
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-course-service
+                  key: db_name
             - name: POSTGRES_USER
-              value: postgres
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-course-service
+                  key: db_username
             - name: POSTGRES_PASSWORD
-              value: magadiflo
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-course-service
+                  key: db_password
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data

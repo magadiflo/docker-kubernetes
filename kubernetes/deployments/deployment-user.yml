@@ -19,18 +19,42 @@ spec:
             - containerPort: 8001
           env:
             - name: CONTAINER_PORT
-              value: '8001'
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-user-service
+                  key: container_port
             - name: DB_HOST
-              value: s-mysql
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-user-service
+                  key: db_host
             - name: DB_PORT
-              value: '3306'
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-user-service
+                  key: db_port
             - name: DB_NAME
-              value: db_user_service
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-user-service
+                  key: db_name
             - name: DB_USERNAME
-              value: admin
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-user-service
+                  key: db_username
             - name: DB_PASSWORD
-              value: magadiflo
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-user-service
+                  key: db_password
             - name: COURSE_SERVICE_HOST
-              value: s-course-service
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-user-service
+                  key: course_service_host
             - name: COURSE_SERVICE_PORT
-              value: '8002'
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-user-service
+                  key: course_service_port
