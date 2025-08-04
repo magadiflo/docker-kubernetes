@@ -7,7 +7,5 @@ data:
   db_host: s-mysql
   db_port: '3306'
   db_name: db_user_service
-  db_username: admin
-  db_password: magadiflo
   course_service_host: s-course-service
   course_service_port: '8002'
