@@ -5,8 +5,8 @@ import dev.magadiflo.course.app.dto.UserResponse;
 import dev.magadiflo.course.app.exception.CommunicationException;
 import dev.magadiflo.course.app.exception.ErrorResponse;
 import dev.magadiflo.course.app.exception.RemoteUserNotFoundException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -17,17 +17,21 @@ import java.util.List;
 import java.util.Optional;
 
 @Slf4j
-@RequiredArgsConstructor
 @Component
 public class UserServiceClient {
 
+    private static final String USER_URI = "/api/v1/users";
     private final RestClient restClient;
+
+    public UserServiceClient(@Qualifier("userRestClient") RestClient userRestClient) {
+        this.restClient = userRestClient;
+    }
 
     public UserResponse getUserFromUserService(Long userId) {
         log.info("Consultando al servicio user-service por el usuario con id {}", userId);
         UserResponse userResponse = this.restClient
                 .get()
-                .uri("/{userId}", userId)
+                .uri(USER_URI.concat("/{userId}"), userId)
                 .exchange((clientRequest, clientResponse) -> {
                     HttpStatusCode statusCode = clientResponse.getStatusCode();
                     if (statusCode == HttpStatus.OK) {
@@ -54,6 +58,7 @@ public class UserServiceClient {
         log.info("Registrando usuario en el user-service: {}", userRequest);
         UserResponse userResponse = this.restClient
                 .post()
+                .uri(USER_URI)
                 .body(userRequest)
                 .retrieve()
                 .body(UserResponse.class);
@@ -66,7 +71,7 @@ public class UserServiceClient {
         List<UserResponse> userResponseList = this.restClient
                 .get()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/by-ids")
+                        .path(USER_URI.concat("/by-ids"))
                         .queryParam("userIds", userIds)
                         .build())
                 .retrieve()

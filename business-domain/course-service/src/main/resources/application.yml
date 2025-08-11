@@ -16,10 +16,16 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  cloud:
+    kubernetes:
+      secrets:
+        enable-api: true
+      discovery:
+        all-namespaces: true
 
 custom:
   user-service:
-    base-url: http://${USER_SERVICE_HOST}:${USER_SERVICE_PORT}/api/v1/users
+    base-url: http://${K8S_USER_SERVICE_NAME}
 
 logging:
   level:
