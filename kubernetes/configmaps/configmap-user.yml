@@ -7,5 +7,4 @@ data:
   db_host: s-mysql
   db_port: '3306'
   db_name: db_user_service
-  course_service_host: s-course-service
-  course_service_port: '8002'
+  k8s_course_service_name: s-course-service

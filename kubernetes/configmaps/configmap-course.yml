@@ -7,5 +7,4 @@ data:
   db_host: s-postgres
   db_port: '5432'
   db_name: db_course_service
-  user_service_host: s-user-service
-  user_service_port: '8001'
+  k8s_user_service_name: s-user-service

@@ -48,13 +48,8 @@ spec:
                 secretKeyRef:
                   name: sec-user-service
                   key: db_password
-            - name: COURSE_SERVICE_HOST
+            - name: K8S_COURSE_SERVICE_NAME
               valueFrom:
                 configMapKeyRef:
                   name: cm-user-service
-                  key: course_service_host
-            - name: COURSE_SERVICE_PORT
-              valueFrom:
-                configMapKeyRef:
-                  name: cm-user-service
-                  key: course_service_port
+                  key: k8s_course_service_name
