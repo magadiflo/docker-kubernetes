@@ -8,12 +8,23 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.env.Environment;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -23,6 +34,17 @@ public class UserController {
 
     private final UserService userService;
     private final ApplicationContext context;
+    private final Environment env;
+
+    @GetMapping(path = "/info")
+    public ResponseEntity<Map<String, Object>> getInfo() {
+        Map<String, Object> body = Map.of(
+                "users", this.userService.findAllUsers(),
+                "POD_NAME", Objects.requireNonNull(this.env.getProperty("MY_POD_NAME")),
+                "POD_IP", Objects.requireNonNull(this.env.getProperty("MY_POD_IP"))
+        );
+        return ResponseEntity.ok(body);
+    }
 
     @GetMapping(path = "/simulate-an-error")
     public void simulateAnError() {
