@@ -24,6 +24,11 @@ spring:
         enable-api: true
       discovery:
         all-namespaces: true
+      config:
+        sources:
+          - name: cm-user-service
+  config:
+    import: 'kubernetes:'
 
 custom:
   course-service:

@@ -41,7 +41,8 @@ public class UserController {
         Map<String, Object> body = Map.of(
                 "users", this.userService.findAllUsers(),
                 "POD_NAME", Objects.requireNonNull(this.env.getProperty("MY_POD_NAME")),
-                "POD_IP", Objects.requireNonNull(this.env.getProperty("MY_POD_IP"))
+                "POD_IP", Objects.requireNonNull(this.env.getProperty("MY_POD_IP")),
+                "config_text", Objects.requireNonNull(this.env.getProperty("config.text"))
         );
         return ResponseEntity.ok(body);
     }

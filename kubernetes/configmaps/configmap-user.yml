@@ -8,3 +8,6 @@ data:
   db_port: '3306'
   db_name: db_user_service
   k8s_course_service_name: s-course-service
+  user-service.yml: |-
+    config:
+      text: Configuración desde el ConfigMap. Entorno por defecto.
