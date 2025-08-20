@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: d-user-service
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: d-user-service
@@ -18,11 +18,24 @@ spec:
           ports:
             - containerPort: 8001
           env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: CONTAINER_PORT
               valueFrom:
                 configMapKeyRef:
                   name: cm-user-service
                   key: container_port
+            - name: SPRING_PROFILES_ACTIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-user-service
+                  key: spring_profiles_active
             - name: DB_HOST
               valueFrom:
                 configMapKeyRef:
@@ -48,13 +61,8 @@ spec:
                 secretKeyRef:
                   name: sec-user-service
                   key: db_password
-            - name: COURSE_SERVICE_HOST
+            - name: K8S_COURSE_SERVICE_NAME
               valueFrom:
                 configMapKeyRef:
                   name: cm-user-service
-                  key: course_service_host
-            - name: COURSE_SERVICE_PORT
-              valueFrom:
-                configMapKeyRef:
-                  name: cm-user-service
-                  key: course_service_port
+                  key: k8s_course_service_name

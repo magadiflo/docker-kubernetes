@@ -18,10 +18,37 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  cloud:
+    kubernetes:
+      secrets:
+        enable-api: true
+      discovery:
+        all-namespaces: true
+      config:
+        sources:
+          - name: cm-user-service
+  config:
+    import: 'kubernetes:'
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
 
 custom:
   course-service:
-    base-url: http://${COURSE_SERVICE_HOST}:${COURSE_SERVICE_PORT}/api/v1/courses
+    base-url: http://${K8S_COURSE_SERVICE_NAME}
 
 logging:
   level:
