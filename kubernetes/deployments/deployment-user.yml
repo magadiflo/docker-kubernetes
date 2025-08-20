@@ -17,22 +17,6 @@ spec:
           name: c-user-service
           ports:
             - containerPort: 8001
-          readinessProbe:
-            httpGet:
-              path: /actuator/health/readiness
-              port: 8001
-              scheme: HTTP
-            initialDelaySeconds: 15
-            periodSeconds: 10
-            timeoutSeconds: 5
-          livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
-              port: 8001
-              scheme: HTTP
-            initialDelaySeconds: 15
-            periodSeconds: 10
-            timeoutSeconds: 5
           env:
             - name: MY_POD_NAME
               valueFrom:
