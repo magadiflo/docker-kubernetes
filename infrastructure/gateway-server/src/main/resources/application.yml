@@ -1,0 +1,8 @@
+server:
+  port: ${CONTAINER_PORT:8090}
+  error:
+    include-message: always
+
+spring:
+  application:
+    name: gateway-server
