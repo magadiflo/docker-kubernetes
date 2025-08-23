@@ -1,0 +1,19 @@
+server:
+  port: ${CONTAINER_PORT:8090}
+  error:
+    include-message: always
+
+spring:
+  application:
+    name: gateway-server
+  cloud:
+    gateway:
+      routes:
+        - id: course-service-route
+          uri: lb://s-course-service
+          predicates:
+            - Path=/api/v1/courses/**
+        - id: user-service-route
+          uri: lb://s-user-service
+          predicates:
+            - Path=/api/v1/users/**
