@@ -17,3 +17,20 @@ spring:
           uri: lb://s-user-service
           predicates:
             - Path=/api/v1/users/**
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://127.0.0.1:9000
+      client:
+        registration:
+          my-oauth2-client:
+            provider: my-auth-server
+            client-id: gateway-app
+            client-secret: 123456
+            authorization-grant-type: authorization_code
+            redirect-uri: http://127.0.0.1:8090/authorized
+            scope: openid, profile
+        provider:
+          my-auth-server:
+            issuer-uri: http://127.0.0.1:9000
