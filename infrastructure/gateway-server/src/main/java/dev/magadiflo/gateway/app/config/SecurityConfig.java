@@ -5,8 +5,15 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.context.NoOpServerSecurityContextRepository;
+import reactor.core.publisher.Mono;
+
+import java.util.Collection;
+import java.util.stream.Collectors;
 
 @Configuration
 public class SecurityConfig {
@@ -25,7 +32,16 @@ public class SecurityConfig {
                 .oauth2Login(Customizer.withDefaults())
                 .oauth2Client(Customizer.withDefaults())
                 .oauth2ResourceServer(oauth2ResourceServer ->
-                        oauth2ResourceServer.jwt(Customizer.withDefaults()));
+                        oauth2ResourceServer.jwt(jwt -> {
+                            jwt.jwtAuthenticationConverter(source -> {
+                                Collection<String> roles = source.getClaimAsStringList("roles");
+                                Collection<GrantedAuthority> authorities = roles.stream()
+                                        .map(SimpleGrantedAuthority::new)
+                                        .collect(Collectors.toSet());
+
+                                return Mono.just(new JwtAuthenticationToken(source, authorities));
+                            });
+                        }));
         return http.build();
     }
 }
