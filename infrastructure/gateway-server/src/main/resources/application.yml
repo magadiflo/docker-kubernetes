@@ -21,7 +21,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://127.0.0.1:9000
+          issuer-uri: ${LB_AUTHORIZATION_ISSUER_URI:http://127.0.0.1:9000}
       client:
         registration:
           my-oauth2-client:
@@ -29,8 +29,8 @@ spring:
             client-id: gateway-app
             client-secret: 123456
             authorization-grant-type: authorization_code
-            redirect-uri: http://127.0.0.1:8090/authorized
+            redirect-uri: ${LB_GATEWAY_URI:http://127.0.0.1:8090}/authorized
             scope: openid, profile
         provider:
           my-auth-server:
-            issuer-uri: http://127.0.0.1:9000
+            issuer-uri: ${LB_AUTHORIZATION_ISSUER_URI:http://127.0.0.1:9000}

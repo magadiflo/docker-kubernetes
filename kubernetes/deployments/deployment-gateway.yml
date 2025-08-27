@@ -20,3 +20,13 @@ spec:
           env:
             - name: CONTAINER_PORT
               value: '8090'
+            - name: LB_AUTHORIZATION_ISSUER_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-gateway-server
+                  key: lb_authorization_issuer_uri
+            - name: LB_GATEWAY_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-gateway-server
+                  key: lb_gateway_uri
