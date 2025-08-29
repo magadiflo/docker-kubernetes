@@ -1,25 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: d-gateway-server
+  name: d-authorization-server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: d-gateway-server
+      app: d-authorization-server
   template:
     metadata:
       labels:
-        app: d-gateway-server
+        app: d-authorization-server
     spec:
       containers:
-        - image: magadiflo/gateway-server:latest
-          name: c-gateway-server
+        - image: magadiflo/authorization-server:latest
+          name: c-authorization-server
           ports:
-            - containerPort: 8090
+            - containerPort: 9000
           env:
-            - name: CONTAINER_PORT
-              value: '8090'
             - name: LB_AUTHORIZATION_ISSUER_URI
               valueFrom:
                 configMapKeyRef:
