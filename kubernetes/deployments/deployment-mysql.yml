@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: d-mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: d-mysql
+  template:
+    metadata:
+      labels:
+        app: d-mysql
+    spec:
+      containers:
+        - image: mysql:8.0.41-debian
+          name: c-mysql
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sec-user-service
+                  key: db_password
+            - name: MYSQL_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-user-service
+                  key: db_name
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: sec-user-service
+                  key: db_username
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sec-user-service
+                  key: db_password
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: pvc-mysql

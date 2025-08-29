@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: d-course-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: d-course-service
+  template:
+    metadata:
+      labels:
+        app: d-course-service
+    spec:
+      containers:
+        - image: magadiflo/course-service:latest
+          name: c-course-service
+          ports:
+            - containerPort: 8002
+          env:
+            - name: CONTAINER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-course-service
+                  key: container_port
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-course-service
+                  key: db_host
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-course-service
+                  key: db_port
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-course-service
+                  key: db_name
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: sec-course-service
+                  key: db_username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sec-course-service
+                  key: db_password
+            - name: K8S_USER_SERVICE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-course-service
+                  key: k8s_user_service_name

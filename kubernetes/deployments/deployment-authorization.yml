@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: d-authorization-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: d-authorization-server
+  template:
+    metadata:
+      labels:
+        app: d-authorization-server
+    spec:
+      containers:
+        - image: magadiflo/authorization-server:latest
+          name: c-authorization-server
+          ports:
+            - containerPort: 9000
+          env:
+            - name: LB_AUTHORIZATION_ISSUER_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-gateway-server
+                  key: lb_authorization_issuer_uri
+            - name: LB_GATEWAY_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-gateway-server
+                  key: lb_gateway_uri

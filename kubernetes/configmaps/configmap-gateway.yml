@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cm-gateway-server
+data:
+  lb_authorization_issuer_uri: http://s-authorization-server:9000
+  lb_gateway_uri: http://s-gateway-server:8090

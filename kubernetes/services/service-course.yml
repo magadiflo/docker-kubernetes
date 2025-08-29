@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: s-course-service
+spec:
+  ports:
+    - port: 8002
+      protocol: TCP
+      targetPort: 8002
+  selector:
+    app: d-course-service
+  type: LoadBalancer

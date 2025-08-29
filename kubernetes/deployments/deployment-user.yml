@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: d-user-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: d-user-service
+  template:
+    metadata:
+      labels:
+        app: d-user-service
+    spec:
+      containers:
+        - image: magadiflo/user-service:latest
+          name: c-user-service
+          ports:
+            - containerPort: 8001
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: CONTAINER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-user-service
+                  key: container_port
+            - name: SPRING_PROFILES_ACTIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-user-service
+                  key: spring_profiles_active
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-user-service
+                  key: db_host
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-user-service
+                  key: db_port
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-user-service
+                  key: db_name
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: sec-user-service
+                  key: db_username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sec-user-service
+                  key: db_password
+            - name: K8S_COURSE_SERVICE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-user-service
+                  key: k8s_course_service_name

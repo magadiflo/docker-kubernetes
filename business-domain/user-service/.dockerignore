@@ -1,0 +1,7 @@
+# Ignora todos los archivos y directorios del contexto de construcción
+*
+# Los siguientes directorios y archivos no deben ser ignorados
+!src/
+!pom.xml
+!.mvn/
+!mvnw

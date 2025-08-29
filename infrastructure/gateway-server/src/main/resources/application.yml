@@ -1,0 +1,36 @@
+server:
+  port: ${CONTAINER_PORT:8090}
+  error:
+    include-message: always
+
+spring:
+  application:
+    name: gateway-server
+  cloud:
+    gateway:
+      routes:
+        - id: course-service-route
+          uri: lb://s-course-service
+          predicates:
+            - Path=/api/v1/courses/**
+        - id: user-service-route
+          uri: lb://s-user-service
+          predicates:
+            - Path=/api/v1/users/**
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${LB_AUTHORIZATION_ISSUER_URI:http://127.0.0.1:9000}
+      client:
+        registration:
+          my-oauth2-client:
+            provider: my-auth-server
+            client-id: gateway-app
+            client-secret: 123456
+            authorization-grant-type: authorization_code
+            redirect-uri: ${LB_GATEWAY_URI:http://127.0.0.1:8090}/authorized
+            scope: openid, profile
+        provider:
+          my-auth-server:
+            issuer-uri: ${LB_AUTHORIZATION_ISSUER_URI:http://127.0.0.1:9000}

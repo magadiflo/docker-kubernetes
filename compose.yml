@@ -1,0 +1,80 @@
+services:
+  s-mysql:
+    image: mysql:8.0.41-debian
+    container_name: c-mysql
+    restart: unless-stopped
+    ports:
+      - '3307:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: magadiflo
+      MYSQL_DATABASE: db_user_service
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: magadiflo
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - docker-kubernetes-net
+    healthcheck:
+      test: [ "CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  s-postgres:
+    image: postgres:17-alpine
+    container_name: c-postgres
+    restart: unless-stopped
+    ports:
+      - '5433:5432'
+    environment:
+      POSTGRES_DB: db_course_service
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: magadiflo
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - docker-kubernetes-net
+    healthcheck:
+      test: [ 'CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}' ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  s-user-service:
+    image: magadiflo/user-service:latest
+    container_name: c-user-service
+    restart: unless-stopped
+    ports:
+      - '8001:8001'
+    env_file: ./business-domain/user-service/.env
+    networks:
+      - docker-kubernetes-net
+    depends_on:
+      s-mysql:
+        condition: service_healthy
+
+  s-course-service:
+    image: magadiflo/course-service:latest
+    container_name: c-course-service
+    restart: unless-stopped
+    ports:
+      - '8002:8002'
+    env_file: ./business-domain/course-service/.env
+    networks:
+      - docker-kubernetes-net
+    depends_on:
+      s-postgres:
+        condition: service_healthy
+
+volumes:
+  mysql-data:
+    name: mysql-data
+    external: true
+  postgres-data:
+    name: postgres-data
+    external: true
+
+networks:
+  docker-kubernetes-net:
+    name: docker-kubernetes-net
+    external: true

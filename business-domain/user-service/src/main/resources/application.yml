@@ -1,0 +1,58 @@
+server:
+  port: ${CONTAINER_PORT:8001}
+  error:
+    include-message: always
+
+spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:default}
+  application:
+    name: user-service
+  datasource:
+    url: jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+  cloud:
+    kubernetes:
+      secrets:
+        enable-api: true
+      discovery:
+        all-namespaces: true
+      config:
+        sources:
+          - name: cm-user-service
+  config:
+    import: 'kubernetes:'
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+custom:
+  course-service:
+    base-url: http://${K8S_COURSE_SERVICE_NAME}
+
+logging:
+  level:
+    dev.magadiflo.user.app: debug
+    org.hibernate.SQL: debug
+  file:
+    name: /app/logs/${spring.application.name}.log
