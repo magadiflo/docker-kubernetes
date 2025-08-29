@@ -3,5 +3,5 @@ kind: ConfigMap
 metadata:
   name: cm-gateway-server
 data:
-  lb_authorization_issuer_uri: http://127.0.0.1:9000
-  lb_gateway_uri: http://127.0.0.1:8090
+  lb_authorization_issuer_uri: http://s-authorization-server:9000
+  lb_gateway_uri: http://s-gateway-server:8090

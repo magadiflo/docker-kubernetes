@@ -4,6 +4,7 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -163,7 +164,8 @@ public class SecurityConfig {
 
     @Bean
     public AuthorizationServerSettings authorizationServerSettings() {
-        return AuthorizationServerSettings.builder().issuer("http://127.0.0.1:9000").build();
+        String lbAuthorizationIssuerUri = Objects.requireNonNull(this.env.getProperty("LB_AUTHORIZATION_ISSUER_URI"));
+        return AuthorizationServerSettings.builder().issuer(lbAuthorizationIssuerUri).build();
     }
 
     @Bean

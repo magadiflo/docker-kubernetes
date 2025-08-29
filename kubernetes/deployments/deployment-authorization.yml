@@ -18,6 +18,11 @@ spec:
           ports:
             - containerPort: 9000
           env:
+            - name: LB_AUTHORIZATION_ISSUER_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-gateway-server
+                  key: lb_authorization_issuer_uri
             - name: LB_GATEWAY_URI
               valueFrom:
                 configMapKeyRef:
